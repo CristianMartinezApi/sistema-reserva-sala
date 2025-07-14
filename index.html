@@ -8,15 +8,38 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🏢 Sala de Reunião</h1>
-            <p class="subtitle">Sistema de Reservas - Capacidade: 12 pessoas</p>
-        </header>
-
-        <!-- Status de Conexão -->
-        <div class="status-conexao" id="statusConexao" style="display: block;">
-            🔄 Conectando ao Firebase...
+        <!-- Substituir o header existente por este -->
+<header>
+    <div class="header-content">
+        <h1>🏢 Sala de Reuniões CEST/EPPE</h1>
+        
+        <div class="sala-info">
+            <div class="info-item">
+                <span class="info-icon">📍</span>
+                <span>Localização: Prédio Sede - 1º Andar</span>
+            </div>
+            <div class="info-item">
+                <span class="info-icon">👥</span>
+                <span>Capacidade: 9 pessoas</span>
+            </div>
         </div>
+        <div class="estrutura-info">
+            <h3> Estrutura Disponível:</h3>
+            <div class="estrutura-grid">
+                <div class="estrutura-item">📺 TV</div>
+                <div class="estrutura-item">🔌 Cabo HDMI</div>
+                <div class="estrutura-item">❄️ Ar Condicionado</div>
+                <div class="estrutura-item">⚡ Guia Elétrico</div>
+            </div>
+            <div class="aviso-notebook">
+                <span class="aviso-icon">💻</span>
+                <span><strong>Importante:</strong> Precisa trazer notebook</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+
 
         <!-- Status Atual da Sala -->
         <div class="status-atual" id="statusAtual">
