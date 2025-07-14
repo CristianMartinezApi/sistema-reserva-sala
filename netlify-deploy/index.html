@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva da Sala de Reunião</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏢 Sala de Reunião</h1>
+            <p class="subtitle">Sistema de Reservas - Capacidade: 12 pessoas</p>
+        </header>
+
+        <!-- Status de Conexão -->
+        <div class="status-conexao" id="statusConexao" style="display: block;">
+            🔄 Conectando ao Firebase...
+        </div>
+
+        <!-- Status Atual da Sala -->
+        <div class="status-atual" id="statusAtual">
+            <div class="status-icon">🟢</div>
+            <h2>Conectando...</h2>
+            <p>Carregando dados do sistema...</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Formulário de Nova Reserva -->
+            <div class="card">
+                <h2>📅 Nova Reserva</h2>
+                <form id="reservaForm">
+                    <div class="form-group">
+                        <label for="responsavel">Nome do Responsável:</label>
+                        <input type="text" id="responsavel" required placeholder="Seu nome completo">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="data">Data da Reunião:</label>
+                        <input type="date" id="data" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Horário:</label>
+                        <div class="time-inputs">
+                            <div>
+                                <label for="horaInicio">Início:</label>
+                                <input type="time" id="horaInicio" required>
+                            </div>
+                            <div>
+                                <label for="horaFim">Fim:</label>
+                                <input type="time" id="horaFim" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="assunto">Assunto da Reunião:</label>
+                        <input type="text" id="assunto" required placeholder="Ex: Reunião de planejamento">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="observacoes">Observações (opcional):</label>
+                        <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
+                    </div>
+
+                    <button type="submit" id="btnReservar">✅ Reservar Sala</button>
+                </form>
+            </div>
+
+            <!-- Consulta Rápida -->
+            <div class="card">
+                <h2>🔍 Consultar Disponibilidade</h2>
+                <form id="consultaForm">
+                    <div class="form-group">
+                        <label for="consultaData">Data:</label>
+                        <input type="date" id="consultaData" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Horário desejado (opcional):</label>
+                        <div class="time-inputs">
+                            <div>
+                                <label for="consultaInicio">Início:</label>
+                                <input type="time" id="consultaInicio">
+                            </div>
+                            <div>
+                                <label for="consultaFim">Fim:</label>
+                                <input type="time" id="consultaFim">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit">🔍 Verificar</button>
+                </form>
+
+                <div id="resultadoConsulta"></div>
+            </div>
+        </div>
+
+        <!-- Agenda de Reservas -->
+        <div class="agenda-card">
+            <div class="agenda-header">
+                <h2>📋 Próximas Reservas</h2>
+                <span class="contador-reservas" id="contadorReservas">0 reservas</span>
+            </div>
+            <div id="listaReservas">
+                <div class="no-reservas">
+                    Carregando reservas...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- APENAS ESTE SCRIPT -->
+    <script type="module" src="firebase-script.js"></script>
+</body>
+</html>
