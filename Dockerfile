@@ -6,6 +6,10 @@ WORKDIR /app
 # Copia os arquivos da aplicação
 COPY . .
 
+RUN apk add --no-cache tzdata
+ENV TZ=America/Sao_Paulo
+
+
 # Instala servidor estático
 RUN npm install -g http-server
 
