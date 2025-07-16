@@ -85,11 +85,19 @@ function validarDadosReserva(reservaData) {
         erros.push('Nome do responsável deve ter pelo menos 2 caracteres');
     }
     
-    // Validar data
-    const hoje = new Date();
-    const dataReserva = new Date(reservaData.data);
-    if (dataReserva < hoje.setHours(0,0,0,0)) {
-        erros.push('Não é possível fazer reservas para datas passadas');
+    // Validar data com margem de 30 minutos
+    const agora = new Date();
+    const dataReserva = new Date(reservaData.data + 'T' + reservaData.horaInicio);
+    const margemMinutos = 30 * 60 * 1000; // 30 minutos em millisegundos
+    
+    if (dataReserva.getTime() <= (agora.getTime() + margemMinutos)) {
+        const minutosRestantes = Math.ceil((dataReserva.getTime() - agora.getTime()) / (60 * 1000));
+        
+        if (minutosRestantes <= 0) {
+            erros.push('Não é possível fazer reservas para horários que já passaram');
+        } else {
+            erros.push(`Reservas devem ser feitas com pelo menos 30 minutos de antecedência (faltam ${minutosRestantes} min)`);
+        }
     }
     
     // Validar horários
@@ -305,7 +313,7 @@ async function adicionarReserva(reservaData) {
         incrementarContadorReservas();
         
         console.log('✅ Reserva salva:', docRef.id);
-        logSeguranca('RESERVA_CRIADA', { 
+        logSeguranca('RESERVA_CRIADA', {
             id: docRef.id,
             responsavel: dadosLimpos.responsavel,
             data: dadosLimpos.data,
@@ -341,13 +349,13 @@ async function deletarReserva(id, codigoInformado) {
             throw new Error('Reserva não encontrada');
         }
         
-                // Validar código de segurança
+               // Validar código de segurança
         if (!codigoInformado || codigoInformado.trim() === '') {
             throw new Error('Código de cancelamento é obrigatório');
         }
         
         if (reserva.codigo !== codigoInformado.trim().toUpperCase()) {
-            logSeguranca('TENTATIVA_CANCELAMENTO_CODIGO_INVALIDO', { 
+            logSeguranca('TENTATIVA_CANCELAMENTO_CODIGO_INVALIDO', {
                 reservaId: id,
                 codigoTentativa: codigoInformado.substring(0, 3) + '***' // Log parcial por segurança
             });
@@ -357,7 +365,7 @@ async function deletarReserva(id, codigoInformado) {
         await deleteDoc(doc(db, 'reservas', id));
         
         console.log('✅ Reserva deletada:', id);
-        logSeguranca('RESERVA_CANCELADA', { 
+        logSeguranca('RESERVA_CANCELADA', {
             id: id,
             responsavel: reserva.responsavel,
             data: reserva.data
@@ -545,7 +553,6 @@ function mostrarModalCodigo(codigo, dadosReserva) {
         fecharOriginal();
     };
 }
-
 
 // Função para copiar código
 function copiarCodigo(codigo) {
@@ -788,17 +795,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const assunto = document.getElementById('assunto').value.trim();
             const observacoes = document.getElementById('observacoes').value.trim();
             
+            // Validação da margem de 30 minutos no frontend
+            const agora = new Date();
+            const dataReserva = new Date(data + 'T' + horaInicio);
+            const margemMinutos = 30 * 60 * 1000; // 30 minutos em millisegundos
+            
+            if (dataReserva.getTime() <= (agora.getTime() + margemMinutos)) {
+                const minutosRestantes = Math.ceil((dataReserva.getTime() - agora.getTime()) / (60 * 1000));
+                
+                if (minutosRestantes <= 0) {
+                    mostrarMensagem('⚠️ Não é possível fazer reservas para horários que já passaram!', 'erro');
+                    return;
+                } else {
+                    mostrarMensagem(`⚠️ Reservas devem ser feitas com pelo menos 30 minutos de antecedência (faltam ${minutosRestantes} min)`, 'erro');
+                    return;
+                }
+            }
+            
             // Validações básicas no frontend
             if (horaInicio >= horaFim) {
                 mostrarMensagem('⚠️ A hora de início deve ser anterior à hora de fim!', 'erro');
-                return;
-            }
-            
-            // Verificar se não é no passado
-            const agora = new Date();
-            const dataReserva = new Date(data + 'T' + horaInicio);
-            if (dataReserva <= agora) {
-                mostrarMensagem('⚠️ Não é possível fazer reservas para datas/horários passados!', 'erro');
                 return;
             }
             
@@ -864,6 +880,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (horaInicio >= horaFim) {
                     resultado.innerHTML = '<div class="consulta-result ocupada">⚠️ Horário inválido!</div>';
                     return;
+                }
+                
+                // Verificar margem de 30 minutos na consulta também
+                const agora = new Date();
+                const dataConsulta = new Date(data + 'T' + horaInicio);
+                const margemMinutos = 30 * 60 * 1000;
+                
+                if (dataConsulta.getTime() <= (agora.getTime() + margemMinutos)) {
+                    const minutosRestantes = Math.ceil((dataConsulta.getTime() - agora.getTime()) / (60 * 1000));
+                    
+                    if (minutosRestantes <= 0) {
+                        resultado.innerHTML = '<div class="consulta-result ocupada">⚠️ Horário já passou!</div>';
+                        return;
+                    } else {
+                        resultado.innerHTML = `<div class="consulta-result ocupada">⚠️ Horário muito próximo! (faltam ${minutosRestantes} min - mínimo 30 min)</div>`;
+                        return;
+                    }
                 }
                 
                 const conflitos = verificarConflito(data, horaInicio, horaFim);
@@ -970,3 +1003,4 @@ console.log('   • Códigos de cancelamento seguros');
 console.log('   • Validação de dados robusta');
 console.log('   • Logs de segurança');
 console.log('   • Sanitização de entrada');
+console.log('   • ⏰ Margem de 30 minutos para reservas');

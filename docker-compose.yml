@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  reserva-sala:
+    container_name: reserva-sala
+    build: .
+    ports:
+      - "8088:8080"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    networks:
+      - miner
+
+networks:
+  miner:
+    external: true
