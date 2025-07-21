@@ -1315,3 +1315,155 @@ header {
         padding: 0.8rem;
     }
 }
+
+
+
+/* Estilos para as logos no header */
+.logos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    margin-bottom: 0;
+}
+
+/* Estilos base para todas as logos */
+.logo-img {
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+}
+
+/* Logo 1 - ajuste individual */
+.logo-img.logo-1 {
+    height: 70px; /* Ajuste conforme necessário */
+    width: auto;
+}
+
+/* Logo 2 - ajuste individual */
+.logo-img.logo-2 {
+    height: 60px; /* Ajuste conforme necessário */
+    width: auto;
+}
+
+/* Se as logos precisarem de um fundo sutil transparente */
+.logo-img-alt {
+    object-fit: contain;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 5px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.logo-img-alt.logo-1 {
+    height: 70px;
+    width: auto;
+}
+
+.logo-img-alt.logo-2 {
+    height: 60px;
+    width: auto;
+}
+
+/* Ajuste no header principal */
+header {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+/* Estilos para o footer */
+.footer {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    margin-top: 40px;
+    padding: 30px 0 0 0;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    text-align: center;
+}
+
+.footer-section h3 {
+    color: #3498db;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+.contact-info, .info-list, .institution-info {
+    line-height: 1.6;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.contact-icon {
+    margin-right: 10px;
+    font-size: 1.1em;
+}
+
+.info-list p {
+    margin: 8px 0;
+    font-size: 0.9em;
+    color: #ecf0f1;
+}
+
+.institution-info p {
+    margin: 5px 0;
+    color: #bdc3c7;
+}
+
+.footer-bottom {
+    background: rgba(0,0,0,0.2);
+    text-align: center;
+    padding: 15px;
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #bdc3c7;
+}
+
+/* Responsividade para mobile */
+@media (max-width: 768px) {
+    .logos-header {
+        padding: 10px 15px;
+    }
+    
+    .logo-img.logo-1 {
+        height: 55px; /* Ajuste para mobile */
+    }
+    
+    .logo-img.logo-2 {
+        height: 45px; /* Ajuste para mobile */
+    }
+    
+    .logo-img-alt.logo-1 {
+        height: 55px;
+    }
+    
+    .logo-img-alt.logo-2 {
+        height: 45px;
+    }
+    
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 0 15px;
+    }
+    
+    .footer-section h3 {
+        font-size: 1em;
+    }
+}

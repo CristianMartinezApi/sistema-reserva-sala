@@ -1,141 +1,203 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reserva da Sala de Reunião</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="container">
-        <!-- Substituir o header existente por este -->
-<header>
-    <div class="header-content">
-        <h1>🏢 Sala de Reuniões CEST/EPPE</h1>
-        
-        <div class="sala-info">
+      <!-- Header com logos -->
+      <div class="logos-header">
+    <img src="/LogoPGE_Horizontal-Branca--2048x948.png" alt="Logo 1" class="logo-img logo-1">
+    <img src="/eppe-logo-color-branco.png" alt="Logo 2" class="logo-img logo-2">
+</div>
+
+
+      <!-- Header principal -->
+      <header>
+        <div class="header-content">
+          <h1>🏢 Sala de Reuniões CEST/EPPE</h1>
+
+          <div class="sala-info">
             <div class="info-item">
-                <span class="info-icon">📍</span>
-                <span>Localização: Prédio Sede - 1º Andar</span>
+              <span class="info-icon">📍</span>
+              <span>Localização: Prédio Sede - 1º Andar</span>
             </div>
             <div class="info-item">
-                <span class="info-icon">👥</span>
-                <span>Capacidade: 9 pessoas</span>
+              <span class="info-icon">👥</span>
+              <span>Capacidade: 9 pessoas</span>
             </div>
-        </div>
-        <div class="estrutura-info">
-            <h3> Estrutura Disponível:</h3>
+          </div>
+          <div class="estrutura-info">
+            <h3>Estrutura Disponível:</h3>
             <div class="estrutura-grid">
-                <div class="estrutura-item">📺 TV</div>
-                <div class="estrutura-item">🔌 Cabo HDMI</div>
-                <div class="estrutura-item">❄️ Ar Condicionado</div>
-                <div class="estrutura-item">⚡ Guia Elétrico</div>
+              <div class="estrutura-item">📺 TV</div>
+              <div class="estrutura-item">🔌 Cabo HDMI</div>
+              <div class="estrutura-item">❄️ Ar Condicionado</div>
+              <div class="estrutura-item">⚡ Guia Elétrico</div>
             </div>
             <div class="aviso-notebook">
-                <span class="aviso-icon">💻</span>
-                <span><strong>Importante:</strong> Precisa trazer notebook</span>
+              <span class="aviso-icon">💻</span>
+              <span><strong>Importante:</strong> Precisa trazer notebook</span>
             </div>
+          </div>
         </div>
-    </div>
-</header>
+      </header>
 
+      <!-- Status Atual da Sala -->
+      <div class="status-atual" id="statusAtual">
+        <div class="status-icon">🟢</div>
+        <h2>Conectando...</h2>
+        <p>Carregando dados do sistema...</p>
+      </div>
 
-
-        <!-- Status Atual da Sala -->
-        <div class="status-atual" id="statusAtual">
-            <div class="status-icon">🟢</div>
-            <h2>Conectando...</h2>
-            <p>Carregando dados do sistema...</p>
-        </div>
-
-        <div class="main-grid">
-            <!-- Formulário de Nova Reserva -->
-            <div class="card">
-                <h2>📅 Nova Reserva</h2>
-                <form id="reservaForm">
-                    <div class="form-group">
-                        <label for="responsavel">Nome do Responsável:</label>
-                        <input type="text" id="responsavel" required placeholder="Seu nome completo">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="data">Data da Reunião:</label>
-                        <input type="date" id="data" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Horário:</label>
-                        <div class="time-inputs">
-                            <div>
-                                <label for="horaInicio">Início:</label>
-                                <input type="time" id="horaInicio" required>
-                            </div>
-                            <div>
-                                <label for="horaFim">Fim:</label>
-                                <input type="time" id="horaFim" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="assunto">Assunto da Reunião:</label>
-                        <input type="text" id="assunto" required placeholder="Ex: Reunião de planejamento">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="observacoes">Observações (opcional):</label>
-                        <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
-                    </div>
-
-                    <button type="submit" id="btnReservar">✅ Reservar Sala</button>
-                </form>
+      <div class="main-grid">
+        <!-- Formulário de Nova Reserva -->
+        <div class="card">
+          <h2>📅 Nova Reserva</h2>
+          <form id="reservaForm">
+            <div class="form-group">
+              <label for="responsavel">Nome do Responsável:</label>
+              <input
+                type="text"
+                id="responsavel"
+                required
+                placeholder="Seu nome completo"
+              />
             </div>
 
-            <!-- Consulta Rápida -->
-            <div class="card">
-                <h2>🔍 Consultar Disponibilidade</h2>
-                <form id="consultaForm">
-                    <div class="form-group">
-                        <label for="consultaData">Data:</label>
-                        <input type="date" id="consultaData" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Horário desejado (opcional):</label>
-                        <div class="time-inputs">
-                            <div>
-                                <label for="consultaInicio">Início:</label>
-                                <input type="time" id="consultaInicio">
-                            </div>
-                            <div>
-                                <label for="consultaFim">Fim:</label>
-                                <input type="time" id="consultaFim">
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="submit">🔍 Verificar</button>
-                </form>
-
-                <div id="resultadoConsulta"></div>
+            <div class="form-group">
+              <label for="data">Data da Reunião:</label>
+              <input type="date" id="data" required />
             </div>
-        </div>
 
-        <!-- Agenda de Reservas -->
-        <div class="agenda-card">
-            <div class="agenda-header">
-                <h2>📋 Próximas Reservas</h2>
-                <span class="contador-reservas" id="contadorReservas">0 reservas</span>
-            </div>
-            <div id="listaReservas">
-                <div class="no-reservas">
-                    Carregando reservas...
+            <div class="form-group">
+              <label>Horário:</label>
+              <div class="time-inputs">
+                <div>
+                  <label for="horaInicio">Início:</label>
+                  <input type="time" id="horaInicio" required />
                 </div>
+                <div>
+                  <label for="horaFim">Fim:</label>
+                  <input type="time" id="horaFim" required />
+                </div>
+              </div>
             </div>
+
+            <div class="form-group">
+              <label for="assunto">Assunto da Reunião:</label>
+              <input
+                type="text"
+                id="assunto"
+                required
+                placeholder="Ex: Reunião de planejamento"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="observacoes">Observações (opcional):</label>
+              <textarea
+                id="observacoes"
+                rows="3"
+                placeholder="Informações adicionais..."
+              ></textarea>
+            </div>
+
+            <button type="submit" id="btnReservar">✅ Reservar Sala</button>
+          </form>
         </div>
+
+        <!-- Consulta Rápida -->
+        <div class="card">
+          <h2>🔍 Consultar Disponibilidade</h2>
+          <form id="consultaForm">
+            <div class="form-group">
+              <label for="consultaData">Data:</label>
+              <input type="date" id="consultaData" required />
+            </div>
+
+            <div class="form-group">
+              <label>Horário desejado (opcional):</label>
+              <div class="time-inputs">
+                <div>
+                  <label for="consultaInicio">Início:</label>
+                  <input type="time" id="consultaInicio" />
+                </div>
+                <div>
+                  <label for="consultaFim">Fim:</label>
+                  <input type="time" id="consultaFim" />
+                </div>
+              </div>
+            </div>
+
+            <button type="submit">🔍 Verificar</button>
+          </form>
+
+          <div id="resultadoConsulta"></div>
+        </div>
+      </div>
+
+      <!-- Agenda de Reservas -->
+      <div class="agenda-card">
+        <div class="agenda-header">
+          <h2>📋 Próximas Reservas</h2>
+          <span class="contador-reservas" id="contadorReservas"
+            >0 reservas</span
+          >
+        </div>
+        <div id="listaReservas">
+          <div class="no-reservas">Carregando reservas...</div>
+        </div>
+      </div>
     </div>
+
+    <!-- Footer com informações de contato -->
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h3>📞 Suporte Técnico</h3>
+          <div class="contact-info">
+            <div class="contact-item">
+              <span class="contact-icon">📧</span>
+              <span>Email: eppe@pge.sc.gov.br</span>
+            </div>
+            <div class="contact-item">
+              <span class="contact-icon">📱</span>
+              <span>Telefone: (48) 3664-5938 </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-section">
+          <h3>ℹ️ Informações</h3>
+          <div class="info-list">
+            <p> Cada reserva gera um <strong>código único</strong></p>
+            <p> Guarde seu código para cancelamentos</p>
+            <p> Em caso de problemas, entre em contato com o suporte</p>
+          </div>
+        </div>
+
+        <div class="footer-section">
+          <h3>🏢 EPPE</h3>
+          <div class="institution-info">
+            
+            <p>© 2025 - Sistema de Reservas</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>
+          Desenvolvido para facilitar o agendamento da sala de reuniões | Versão
+          1.0
+        </p>
+      </div>
+    </footer>
 
     <!-- APENAS ESTE SCRIPT -->
     <script type="module" src="firebase-script.js"></script>
-</body>
+  </body>
 </html>
