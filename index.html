@@ -1,25 +1,32 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reserva da Sala de Reunião</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reserva da Sala de Reunião</title>
+  <link rel="shortcut icon" href="icon.ico.png" type="image/x-icon" />
+  <link rel="stylesheet" href="style.css" />
+</head>
   <body>
     <div class="container">
       <!-- Header com logos -->
       <div class="logos-header">
-    <img src="/LogoPGE_Horizontal-Branca--2048x948.png" alt="Logo 1" class="logo-img logo-1">
-    <img src="/eppe-logo-color-branco.png" alt="Logo 2" class="logo-img logo-2">
-</div>
-
+        <img
+          src="/LogoPGE_Horizontal-Branca--2048x948.png"
+          alt="Logo 1"
+          class="logo-img logo-1"
+        />
+        <img
+          src="/eppe-logo-color-branco.png"
+          alt="Logo 2"
+          class="logo-img logo-2"
+        />
+      </div>
 
       <!-- Header principal -->
       <header>
         <div class="header-content">
           <h1>🏢 Sala de Reuniões CEST/EPPE</h1>
-
           <div class="sala-info">
             <div class="info-item">
               <span class="info-icon">📍</span>
@@ -57,17 +64,15 @@
         <!-- Formulário de Nova Reserva -->
         <div class="card">
           <h2>📅 Nova Reserva</h2>
+          <!-- Área para exibir o email do usuário autenticado -->
+          <div
+            id="userGreeting"
+            class="user-greeting"
+            style="margin-bottom: 1rem; font-size: 0.9rem"
+          ></div>
           <form id="reservaForm">
-            <div class="form-group">
-              <label for="responsavel">Nome do Responsável:</label>
-              <input
-                type="text"
-                id="responsavel"
-                required
-                placeholder="Seu nome completo"
-              />
-            </div>
-
+            <!-- Campo "responsavel" oculto, preenchido automaticamente -->
+            <input type="hidden" id="responsavel" />
             <div class="form-group">
               <label for="data">Data da Reunião:</label>
               <input type="date" id="data" required />
@@ -166,7 +171,7 @@
             </div>
             <div class="contact-item">
               <span class="contact-icon">📱</span>
-              <span>Telefone: (48) 3664-5938 </span>
+              <span>Telefone: (48) 3664-5938</span>
             </div>
           </div>
         </div>
@@ -174,16 +179,15 @@
         <div class="footer-section">
           <h3>ℹ️ Informações</h3>
           <div class="info-list">
-            <p> Cada reserva gera um <strong>código único</strong></p>
-            <p> Guarde seu código para cancelamentos</p>
-            <p> Em caso de problemas, entre em contato com o suporte</p>
+            <p>Cada reserva gera um <strong>código único</strong></p>
+            <p>Guarde seu código para cancelamentos</p>
+            <p>Em caso de problemas, entre em contato com o suporte</p>
           </div>
         </div>
 
         <div class="footer-section">
           <h3>🏢 EPPE</h3>
           <div class="institution-info">
-            
             <p>© 2025 - Sistema de Reservas</p>
           </div>
         </div>
@@ -199,5 +203,22 @@
 
     <!-- APENAS ESTE SCRIPT -->
     <script type="module" src="firebase-script.js"></script>
+
+    <!-- Modal de Login -->
+    <div id="loginModal" class="modal">
+  <div class="modal-content">
+    <h2>Login</h2>
+    
+    <!-- Botão para login com Google -->
+    <button id="btnLoginGoogle" class="google-btn">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+      Entrar com Google
+    </button>
+
+    <button id="fecharModal" class="close-btn">Fechar</button>
+  </div>
+</div>
+
+
   </body>
 </html>
