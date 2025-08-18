@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reserva da Sala de Reunião</title>
-  <link rel="shortcut icon" href="icon.ico.png" type="image/x-icon" />
-  <link rel="stylesheet" href="style.css" />
-</head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reserva da Sala de Reunião</title>
+    <link rel="shortcut icon" href="icon.ico.png" type="image/x-icon" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
   <body>
     <div class="container">
       <!-- Header com logos -->
@@ -66,10 +66,16 @@
           <h2>📅 Nova Reserva</h2>
           <!-- Área para exibir o email do usuário autenticado -->
           <div
-            id="userGreeting"
-            class="user-greeting"
-            style="margin-bottom: 1rem; font-size: 0.9rem"
-          ></div>
+            class="user-auth"
+            style="display: flex; align-items: center; margin-bottom: 1rem"
+          >
+            <div
+              id="userGreeting"
+              class="user-greeting"
+              style="font-size: 0.9rem"
+            ></div>
+            <div id="logoutContainer"></div>
+          </div>
           <form id="reservaForm">
             <!-- Campo "responsavel" oculto, preenchido automaticamente -->
             <input type="hidden" id="responsavel" />
@@ -206,19 +212,20 @@
 
     <!-- Modal de Login -->
     <div id="loginModal" class="modal">
-  <div class="modal-content">
-    <h2>Login</h2>
-    
-    <!-- Botão para login com Google -->
-    <button id="btnLoginGoogle" class="google-btn">
-      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-      Entrar com Google
-    </button>
+      <div class="modal-content">
+        <h2>Login</h2>
 
-    <button id="fecharModal" class="close-btn">Fechar</button>
-  </div>
-</div>
+        <!-- Botão para login com Google -->
+        <button id="btnLoginGoogle" class="google-btn">
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google"
+          />
+          Entrar com Google
+        </button>
 
-
+        <button id="fecharModal" class="close-btn">Fechar</button>
+      </div>
+    </div>
   </body>
 </html>

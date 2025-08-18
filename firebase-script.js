@@ -10,18 +10,19 @@ import {
   orderBy,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-// Import do módulo de autenticação
 import { monitorAuthState, login, loginWithGoogle } from "./auth.js";
+// Importar funções de autenticação para logout
+import {
+  getAuth,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// Inicializar Firestore com a instância do app importada
 const db = getFirestore(app);
+const auth = getAuth(app); // Inicializa o Auth
 
 // Variáveis globais
 let reservas = [];
 let firebaseConectado = false;
-
-// Variável para armazenar o usuário autenticado
 let usuarioAutenticado = null;
 
 // ========== SISTEMA DE SEGURANÇA ========== //
@@ -741,10 +742,13 @@ document.addEventListener("DOMContentLoaded", function () {
       try {
         const result = await loginWithGoogle();
         mostrarMensagem("Login com Google realizado com sucesso!", "sucesso");
-        // Exibir a saudação com o email do usuário autenticado.
+        // Use o displayName ou, se ausente, a parte do email antes do '@'
+        const userName = result.user.displayName
+          ? result.user.displayName
+          : result.user.email.split("@")[0];
         document.getElementById(
           "userGreeting"
-        ).textContent = `Bem-vindo, ${result.user.email}`;
+        ).textContent = `Bem-vindo, ${userName}`;
         mostrarModalLogin(false);
       } catch (error) {
         mostrarMensagem("Erro no login: " + error.message, "erro");
@@ -753,19 +757,51 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
+// Função para efetuar o logout
+function logout() {
+  signOut(auth)
+    .then(() => {
+      mostrarMensagem("Logout realizado com sucesso!", "sucesso");
+      // Aguarda um pequeno intervalo e recarrega a página para atualizar a interface
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    })
+    .catch((error) => {
+      mostrarMensagem("Erro ao fazer logout: " + error.message, "erro");
+    });
+}
+window.logout = logout;
+
 // Monitorar estado de autenticação
 monitorAuthState((user) => {
+  const userGreetingElem = document.getElementById("userGreeting");
+  const logoutContainer = document.getElementById("logoutContainer");
   if (user) {
     console.log("Usuário autenticado:", user.email);
     usuarioAutenticado = user;
-    document.getElementById(
-      "userGreeting"
-    ).textContent = `Bem-vindo, ${user.displayName || user.email}`;
+    // Se não houver displayName, extrai a parte antes do '@'
+    const userName = user.displayName
+      ? user.displayName
+      : user.email.split("@")[0];
+    userGreetingElem.textContent = `Bem-vindo, ${userName}`;
+    if (!document.getElementById("btnLogout")) {
+      const btnLogout = document.createElement("button");
+      btnLogout.id = "btnLogout";
+      btnLogout.textContent = "Sair";
+      btnLogout.style.cssText =
+        "margin-left: 10px; padding: 0.3rem 0.6rem; border: none; background: #dc3545; color: white; border-radius: 4px; cursor: pointer;";
+      logoutContainer.appendChild(btnLogout);
+      btnLogout.addEventListener("click", logout);
+    }
     mostrarModalLogin(false);
   } else {
     console.log("Nenhum usuário autenticado.");
     usuarioAutenticado = null;
-    // Exibe o modal de login se não houver usuário autenticado
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) {
+      btnLogout.remove();
+    }
     mostrarModalLogin(true);
   }
 });
@@ -791,7 +827,8 @@ document.addEventListener("DOMContentLoaded", function () {
         );
         return;
       }
-      const responsavel = usuarioAutenticado.displayName || usuarioAutenticado.email;
+      const responsavel =
+        usuarioAutenticado.displayName || usuarioAutenticado.email;
       const data = document.getElementById("data").value;
       const horaInicio = document.getElementById("horaInicio").value;
       const horaFim = document.getElementById("horaFim").value;
