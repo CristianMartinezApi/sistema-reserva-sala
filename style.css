@@ -6,9 +6,16 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
-    color: #333;
+    background-color: #f8f9fa; /* claro por padrão */
+    color: #333;               /* texto padrão */
     line-height: 1.6;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1e1e1e; /* fundo escuro */
+        color: #ffffff;           /* texto branco */
+    }
 }
 
 .container {
@@ -16,6 +23,7 @@ body {
     margin: 0 auto;
     padding: 20px;
 }
+
 
 /* Header */
 header {
