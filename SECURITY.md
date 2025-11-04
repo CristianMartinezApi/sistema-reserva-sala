@@ -110,32 +110,22 @@ function isValidReservationTime(data, horaInicio) {
 
 ---
 
-### 4. **Código de Cancelamento Previsível**
+### 4. **Política de Cancelamento**
 
-**Status:** 🟡 Médio
+**Status:** ✅ Implementado
 
-**Problema:** Código gerado no cliente pode ser previsível.
+**Decisão:** Cancelamento apenas pelo responsável autenticado (sem uso de código).
 
-**Solução:**
+**Motivação:**
 
-**Opção 1:** Usar `crypto.randomUUID()`:
+- Evita compartilhamento/roubo de códigos
+- Simplifica a experiência do usuário
+- Regras do Firestore garantem que somente o dono pode deletar
 
-```javascript
-function gerarCodigoSeguranca() {
-  // Gera UUID e pega primeiros 10 caracteres
-  return crypto.randomUUID().replace(/-/g, "").substring(0, 10).toUpperCase();
-}
-```
+**Regras aplicadas:**
 
-**Opção 2:** Gerar no servidor (Cloud Functions):
-
-```javascript
-const crypto = require("crypto");
-
-function generateSecureCode() {
-  return crypto.randomBytes(5).toString("hex").toUpperCase();
-}
-```
+- `delete` permitido apenas quando `resource.data.responsavelEmail == request.auth.token.email`
+- `read/create` restritos a emails `@pge.sc.gov.br`
 
 ---
 
@@ -208,7 +198,7 @@ async function logSecurityEvent(action, details) {
 - [ ] Migrar rate limiting para servidor
 - [ ] Implementar logs de auditoria persistentes
 - [ ] Adicionar CSP (Content Security Policy)
-- [ ] Usar código de cancelamento mais seguro
+- [ ] Cancelamento por proprietário (sem código) — já implementado
 - [ ] Validar dados também no servidor
 
 ### Deploy

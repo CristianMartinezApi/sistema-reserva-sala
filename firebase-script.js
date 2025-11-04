@@ -25,8 +25,6 @@ let reservas = [];
 let firebaseConectado = false;
 let usuarioAutenticado = null;
 
-// ========== SISTEMA DE SEGURANÇA ========== //
-
 // Rate limiting - máximo 5 reservas por hora
 const LIMITE_RESERVAS_POR_HORA = 5;
 let reservasFeitas = parseInt(localStorage.getItem("reservasFeitas") || "0");
@@ -53,23 +51,6 @@ function incrementarContadorReservas() {
   ultimaReserva = Date.now();
   localStorage.setItem("reservasFeitas", reservasFeitas.toString());
   localStorage.setItem("ultimaReserva", ultimaReserva.toString());
-}
-
-function gerarCodigoSeguranca() {
-  // Usar crypto.randomUUID() se disponível, caso contrário fallback
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    // Gera UUID e pega primeiros 10 caracteres (mais seguro)
-    return crypto.randomUUID().replace(/-/g, "").substring(0, 10).toUpperCase();
-  }
-
-  // Fallback para navegadores antigos (menos seguro)
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let codigo = "";
-  for (let i = 0; i < 8; i++) {
-    codigo += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  const timestamp = Date.now().toString().slice(-3);
-  return codigo + timestamp.substring(0, 2);
 }
 
 function validarDadosReserva(reservaData) {
@@ -111,8 +92,8 @@ function validarDadosReserva(reservaData) {
 }
 
 function sanitizarDados(reservaData) {
-  return {
-    responsavel: reservaData.responsavel.trim().substring(0, 100),
+  const base = {
+    responsavel: (reservaData.responsavel || "").trim().substring(0, 100),
     data: reservaData.data,
     horaInicio: reservaData.horaInicio,
     horaFim: reservaData.horaFim,
@@ -121,6 +102,13 @@ function sanitizarDados(reservaData) {
       ? reservaData.observacoes.trim().substring(0, 500)
       : null,
   };
+  if (reservaData.responsavelEmail) {
+    base.responsavelEmail = reservaData.responsavelEmail.trim();
+  }
+  if (reservaData.responsavelNome) {
+    base.responsavelNome = reservaData.responsavelNome.trim().substring(0, 100);
+  }
+  return base;
 }
 
 function logSeguranca(acao, dados = {}) {
@@ -133,8 +121,6 @@ function logSeguranca(acao, dados = {}) {
   };
   console.log("🔐 Log de Segurança:", logEntry);
 }
-
-// ========== FUNÇÕES ORIGINAIS ATUALIZADAS ========== //
 
 function elementoExiste(id) {
   return document.getElementById(id) !== null;
@@ -259,10 +245,8 @@ async function adicionarReserva(reservaData) {
       btnReservar.textContent = "⏳ Salvando...";
       btnReservar.disabled = true;
     }
-    const codigoSeguranca = gerarCodigoSeguranca();
     const reservaComTimestamp = {
       ...dadosLimpos,
-      codigo: codigoSeguranca,
       criadaEm: serverTimestamp(),
       ip: "N/A",
       userAgent: navigator.userAgent.substring(0, 200),
@@ -280,7 +264,7 @@ async function adicionarReserva(reservaData) {
       horario: `${dadosLimpos.horaInicio}-${dadosLimpos.horaFim}`,
     });
     mostrarMensagem("Reserva realizada com sucesso! 🎉", "sucesso");
-    mostrarModalCodigo(codigoSeguranca, dadosLimpos);
+    mostrarModalConfirmacao(dadosLimpos);
     return docRef.id;
   } catch (error) {
     console.error("❌ Erro ao salvar reserva:", error);
@@ -299,27 +283,28 @@ async function adicionarReserva(reservaData) {
   }
 }
 
-async function deletarReserva(id, codigoInformado) {
+async function deletarReserva(id) {
   try {
     const reserva = reservas.find((r) => r.id === id);
     if (!reserva) {
       throw new Error("Reserva não encontrada");
     }
-    if (!codigoInformado || codigoInformado.trim() === "") {
-      throw new Error("Código de cancelamento é obrigatório");
+    // Verificação no cliente para melhor UX (servidor reforça via regras)
+    if (!usuarioAutenticado) {
+      throw new Error("Você precisa estar autenticado para cancelar.");
     }
-    if (reserva.codigo !== codigoInformado.trim().toUpperCase()) {
-      logSeguranca("TENTATIVA_CANCELAMENTO_CODIGO_INVALIDO", {
-        reservaId: id,
-        codigoTentativa: codigoInformado.substring(0, 3) + "***",
-      });
-      throw new Error("Código de cancelamento inválido");
+    if (
+      reserva.responsavelEmail &&
+      reserva.responsavelEmail !== usuarioAutenticado.email
+    ) {
+      throw new Error("Apenas o responsável pela reserva pode cancelar.");
     }
     await deleteDoc(doc(db, "reservas", id));
     console.log("✅ Reserva deletada:", id);
     logSeguranca("RESERVA_CANCELADA", {
       id: id,
       responsavel: reserva.responsavel,
+      responsavelEmail: reserva.responsavelEmail || "(indefinido)",
       data: reserva.data,
     });
     mostrarMensagem("Reserva cancelada com sucesso!", "sucesso");
@@ -337,7 +322,7 @@ async function deletarReserva(id, codigoInformado) {
   }
 }
 
-function mostrarModalCodigo(codigo, dadosReserva) {
+function mostrarModalConfirmacao(dadosReserva) {
   const modalAnterior = document.getElementById("modalCodigo");
   if (modalAnterior) {
     modalAnterior.remove();
@@ -352,65 +337,20 @@ function mostrarModalCodigo(codigo, dadosReserva) {
         height: 100%;
         background: rgba(0,0,0,0.8);
         display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        z-index: 10000;
-        backdrop-filter: blur(5px);
-        overflow-y: auto;
-        padding: 20px 10px;
-        box-sizing: border-box;
-    `;
-  modal.innerHTML = `
-        <div style="
-            background: white;
-            padding: 0;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 90vh;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            overflow: hidden;
-            margin: auto;
-            position: relative;
-        ">
-            <div style="
-                background: linear-gradient(135deg, #28a745, #20c997);
-                color: white;
-                padding: 1.5rem;
-                text-align: center;
-                position: sticky;
-                top: 0;
-                z-index: 1;
-            ">
-                <h2 style="margin: 0; font-size: 1.3rem;">🎉 Reserva Confirmada!</h2>
-            </div>
-            <div style="
-                padding: 1.5rem;
-                overflow-y: auto;
-                max-height: calc(90vh - 100px);
-            ">
                 <div style="
-                    background: #f8f9fa;
-                    padding: 1rem;
+                    background: #e8f5e9;
+                    border: 2px solid #28a745;
+                    padding: 1.2rem;
                     border-radius: 8px;
-                    margin-bottom: 1.5rem;
-                    border-left: 4px solid #28a745;
+                    text-align: center;
+                    margin-bottom: 1.2rem;
+                    color: #155724;
                 ">
-                    <p style="margin: 0; font-size: 0.9rem; color: #666; line-height: 1.4;">
-                        <strong>📅 ${formatarData(
-                          dadosReserva.data
-                        )}</strong><br>
-                        <strong>⏰ ${dadosReserva.horaInicio} às ${
-    dadosReserva.horaFim
-  }</strong><br>
-                        <strong>📋 ${dadosReserva.assunto}</strong>
-                    </p>
+                    <strong>✔ Sua reserva foi registrada.</strong><br>
+                    <small>Cancelamento: apenas pelo responsável autenticado.</small>
                 </div>
-                <div style="
-                    background: #fff3cd;
-                    border: 2px solid #ffc107;
                     padding: 1.5rem;
-                    border-radius: 8px;
+                    <button onclick="fecharModalConfirmacao()" style="
                     text-align: center;
                     margin-bottom: 1.5rem;
                 ">
@@ -433,48 +373,27 @@ function mostrarModalCodigo(codigo, dadosReserva) {
                             font-weight: bold;
                             color: #dc3545;
                             letter-spacing: 2px;
-                            text-align: center;
+      fecharModalConfirmacao();
                             word-break: break-all;
                         ">${codigo}</div>
                     </div>
-                    <button onclick="copiarCodigo('${codigo}')" style="
-                        background: #ffc107;
+  const fecharOriginal = window.fecharModalConfirmacao;
+  window.fecharModalConfirmacao = function () {
                         color: #000;
                         border: none;
                         padding: 0.8rem 1.5rem;
                         border-radius: 6px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        margin-bottom: 1rem;
-                        transition: all 0.3s;
-                        width: 100%;
-                        max-width: 200px;
-                        font-size: 0.9rem;
-                    " onmouseover="this.style.background='#e0a800'" onmouseout="this.style.background='#ffc107'">
-                        📋 Copiar Código
-                    </button>
-                    <p style="
-                        margin: 0;
-                        font-size: 0.85rem;
-                        color: #856404;
-                        line-height: 1.4;
-                    ">
-                        ⚠️ <strong>IMPORTANTE:</strong> Guarde este código com segurança!<br>
-                        Você precisará dele para cancelar a reserva.
-                    </p>
-                </div>
-                <div style="text-align: center; padding-bottom: 1rem;">
-                    <button onclick="fecharModalCodigo()" style="
-                        background: #28a745;
+function fecharModalConfirmacao() {
                         color: white;
                         border: none;
                         padding: 1rem 2rem;
-                        border-radius: 6px;
+    setTimeout(() => {
+      modal.remove();
+      document.body.style.overflow = "auto";
+    }, 300);
                         font-weight: bold;
                         cursor: pointer;
-                        font-size: 1rem;
-                        transition: all 0.3s;
-                        width: 100%;
+window.fecharModalConfirmacao = fecharModalConfirmacao;
                         max-width: 250px;
                     " onmouseover="this.style.background='#218838'" onmouseout="this.style.background='#28a745'">
                         ✅ Entendi, Fechar
@@ -542,8 +461,7 @@ function formatarData(data) {
   });
 }
 
-// ========== CALENDÁRIO (visual) ========== //
-// Estado do calendário: mês atualmente exibido
+// Calendário visual mensal
 let calDataAtual = new Date();
 calDataAtual.setDate(1); // sempre o primeiro dia do mês
 
@@ -773,7 +691,7 @@ function renderizarReservas() {
                     ? `<p><strong>📝 Observações:</strong> ${reserva.observacoes}</p>`
                     : ""
                 }
-                <p><strong>🔐 Status:</strong> <span style="color: #28a745;">Protegida por código</span></p>
+                <p><strong>� Cancelamento:</strong> <span style="color: #28a745;">Apenas o responsável autenticado</span></p>
             </div>
             <div class="reserva-actions">
                 <span class="horario-badge">${reserva.horaInicio} - ${
@@ -795,24 +713,29 @@ async function cancelarReserva(id) {
   const reserva = reservas.find((r) => r.id === id);
   if (!reserva) return;
   logSeguranca("TENTATIVA_CANCELAMENTO_INICIADA", { reservaId: id });
-  const codigo = prompt(
-    `🔐 CÓDIGO DE CANCELAMENTO NECESSÁRIO\n\n` +
+  if (!usuarioAutenticado) {
+    mostrarMensagem("Você precisa estar autenticado para cancelar.", "erro");
+    return;
+  }
+  if (
+    reserva.responsavelEmail &&
+    reserva.responsavelEmail !== usuarioAutenticado.email
+  ) {
+    mostrarMensagem("Apenas o responsável pela reserva pode cancelar.", "erro");
+    return;
+  }
+  const confirmar = confirm(
+    `Confirmar cancelamento?\n\n` +
       `📋 Assunto: ${reserva.assunto}\n` +
       `📅 Data: ${formatarData(reserva.data)}\n` +
-      `⏰ Horário: ${reserva.horaInicio} às ${reserva.horaFim}\n` +
-      `👤 Responsável: ${reserva.responsavel}\n\n` +
-      `Digite o código de cancelamento:`
+      `⏰ Horário: ${reserva.horaInicio} às ${reserva.horaFim}`
   );
-  if (codigo === null) {
+  if (!confirmar) {
     logSeguranca("CANCELAMENTO_ABORTADO_PELO_USUARIO", { reservaId: id });
     return;
   }
-  if (!codigo || codigo.trim() === "") {
-    mostrarMensagem("❌ Código de cancelamento é obrigatório!", "erro");
-    return;
-  }
   try {
-    await deletarReserva(id, codigo);
+    await deletarReserva(id);
   } catch (error) {
     console.error("Erro ao cancelar reserva:", error);
   }
@@ -1065,8 +988,9 @@ document.addEventListener("DOMContentLoaded", function () {
         );
         return;
       }
-      const responsavel =
-        usuarioAutenticado.displayName || usuarioAutenticado.email;
+      const responsavelEmail = usuarioAutenticado.email;
+      const responsavelNome =
+        usuarioAutenticado.displayName || responsavelEmail.split("@")[0];
       const data = document.getElementById("data").value;
       const horaInicio = document.getElementById("horaInicio").value;
       const horaFim = document.getElementById("horaFim").value;
@@ -1117,7 +1041,11 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       const novaReserva = {
-        responsavel,
+        // Para UI legada, mantemos 'responsavel' como nome exibível
+        responsavel: responsavelNome,
+        // Campos de segurança para regras do Firestore
+        responsavelEmail,
+        responsavelNome,
         data,
         horaInicio,
         horaFim,
@@ -1128,7 +1056,7 @@ document.addEventListener("DOMContentLoaded", function () {
         await adicionarReserva(novaReserva);
         this.reset();
         if (elementoExiste("responsavel")) {
-          document.getElementById("responsavel").value = responsavel;
+          document.getElementById("responsavel").value = responsavelNome;
         }
       } catch (error) {
         console.error("Erro ao salvar reserva:", error);
@@ -1259,12 +1187,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
-console.log("🛡️ Sistema de Reservas carregado com segurança aprimorada!");
-console.log("🔐 Recursos de segurança ativos:");
-console.log("   • Rate limiting (5 reservas/hora)");
-console.log("   • Códigos de cancelamento seguros");
-console.log("   • Validação de dados robusta");
-console.log("   • Logs de segurança");
-console.log("   • Sanitização de entrada");
-console.log("   • ⏰ Margem de 30 minutos para reservas");
