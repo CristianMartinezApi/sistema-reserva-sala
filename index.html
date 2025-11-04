@@ -124,29 +124,53 @@
         <!-- Consulta Rápida -->
         <div class="card">
           <h2>🔍 Consultar Disponibilidade</h2>
-          <form id="consultaForm">
-            <div class="form-group">
-              <label for="consultaData">Data:</label>
-              <input type="date" id="consultaData" required />
+
+          <!-- Calendário Mensal (visual) -->
+          <div class="calendar" id="calendar">
+            <div class="calendar-header">
+              <button
+                type="button"
+                class="cal-nav"
+                id="calPrev"
+                aria-label="Mês anterior"
+              >
+                ◀
+              </button>
+              <div class="calendar-title" id="calTitle">Mês Ano</div>
+              <button
+                type="button"
+                class="cal-nav"
+                id="calNext"
+                aria-label="Próximo mês"
+              >
+                ▶
+              </button>
             </div>
-
-            <div class="form-group">
-              <label>Horário desejado (opcional):</label>
-              <div class="time-inputs">
-                <div>
-                  <label for="consultaInicio">Início:</label>
-                  <input type="time" id="consultaInicio" />
-                </div>
-                <div>
-                  <label for="consultaFim">Fim:</label>
-                  <input type="time" id="consultaFim" />
-                </div>
-              </div>
+            <div class="calendar-weekdays">
+              <div>Dom</div>
+              <div>Seg</div>
+              <div>Ter</div>
+              <div>Qua</div>
+              <div>Qui</div>
+              <div>Sex</div>
+              <div>Sáb</div>
             </div>
-
-            <button type="submit">🔍 Verificar</button>
-          </form>
-
+            <div class="calendar-grid" id="calGrid">
+              <!-- Dias são renderizados via JS -->
+            </div>
+            <div class="calendar-legend">
+              <span class="legend-item"
+                ><span class="legend-dot has"></span> tem reunião</span
+              >
+              <span class="legend-item"
+                ><span class="legend-dot today"></span> hoje</span
+              >
+              <span class="legend-item"
+                ><span class="legend-dot other"></span> outro mês</span
+              >
+            </div>
+          </div>
+          <!-- Consulta baseada apenas no calendário: clique em um dia para ver as reservas -->
           <div id="resultadoConsulta"></div>
         </div>
       </div>

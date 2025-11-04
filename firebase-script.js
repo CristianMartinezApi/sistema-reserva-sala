@@ -56,6 +56,13 @@ function incrementarContadorReservas() {
 }
 
 function gerarCodigoSeguranca() {
+  // Usar crypto.randomUUID() se disponível, caso contrário fallback
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    // Gera UUID e pega primeiros 10 caracteres (mais seguro)
+    return crypto.randomUUID().replace(/-/g, "").substring(0, 10).toUpperCase();
+  }
+
+  // Fallback para navegadores antigos (menos seguro)
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let codigo = "";
   for (let i = 0; i < 8; i++) {
@@ -531,6 +538,181 @@ function formatarData(data) {
   });
 }
 
+// ========== CALENDÁRIO (visual) ========== //
+// Estado do calendário: mês atualmente exibido
+let calDataAtual = new Date();
+calDataAtual.setDate(1); // sempre o primeiro dia do mês
+
+function pad2(n) {
+  return n.toString().padStart(2, "0");
+}
+
+function toISODate(d) {
+  const ano = d.getFullYear();
+  const mes = pad2(d.getMonth() + 1);
+  const dia = pad2(d.getDate());
+  return `${ano}-${mes}-${dia}`;
+}
+
+function construirMapaReservasPorDia(lista) {
+  const mapa = new Map(); // key: YYYY-MM-DD -> array de reservas
+  for (const r of lista) {
+    const chave = r.data; // já está em YYYY-MM-DD
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push(r);
+  }
+  // Ordena por hora de início para visual mais consistente
+  for (const [k, arr] of mapa.entries()) {
+    arr.sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+  }
+  return mapa;
+}
+
+function atualizarTituloCalendario() {
+  const titulo = document.getElementById("calTitle");
+  if (!titulo) return;
+  const opcoes = { month: "long", year: "numeric" };
+  const texto = calDataAtual.toLocaleDateString("pt-BR", opcoes);
+  // Capitaliza a primeira letra do mês (alguns navegadores já fazem)
+  titulo.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+function renderizarCalendario() {
+  const grid = document.getElementById("calGrid");
+  if (!grid) return; // Calendário não está na página
+
+  atualizarTituloCalendario();
+
+  const hoje = new Date();
+  const inicioMes = new Date(
+    calDataAtual.getFullYear(),
+    calDataAtual.getMonth(),
+    1
+  );
+  const fimMes = new Date(
+    calDataAtual.getFullYear(),
+    calDataAtual.getMonth() + 1,
+    0
+  );
+
+  // Começar no domingo da semana do primeiro dia do mês
+  const inicioGrid = new Date(inicioMes);
+  inicioGrid.setDate(inicioMes.getDate() - inicioMes.getDay()); // getDay(): 0=Dom ... 6=Sáb
+
+  // Terminamos no sábado da última semana a ser exibida (6 semanas = 42 dias)
+  const totalCelulas = 42;
+
+  // Mapa de reservas por dia
+  const mapa = construirMapaReservasPorDia(reservas);
+
+  // Limpa grid
+  grid.innerHTML = "";
+
+  for (let i = 0; i < totalCelulas; i++) {
+    const diaAtual = new Date(inicioGrid);
+    diaAtual.setDate(inicioGrid.getDate() + i);
+    const iso = toISODate(diaAtual);
+
+    const div = document.createElement("div");
+    div.className = "cal-day";
+    div.setAttribute("data-date", iso);
+
+    // Outro mês
+    if (
+      diaAtual.getMonth() !== calDataAtual.getMonth() ||
+      diaAtual.getFullYear() !== calDataAtual.getFullYear()
+    ) {
+      div.classList.add("other-month");
+    }
+
+    // Hoje
+    if (
+      diaAtual.getFullYear() === hoje.getFullYear() &&
+      diaAtual.getMonth() === hoje.getMonth() &&
+      diaAtual.getDate() === hoje.getDate()
+    ) {
+      div.classList.add("today");
+    }
+
+    // Cabeçalho com número do dia
+    const numero = document.createElement("div");
+    numero.className = "date-num";
+    numero.textContent = diaAtual.getDate();
+    div.appendChild(numero);
+
+    // Indicadores de reservas
+    const reservasDoDia = mapa.get(iso) || [];
+    if (reservasDoDia.length > 0) {
+      div.classList.add("has-reserva");
+      const dots = document.createElement("div");
+      dots.className = "dots";
+      const count = Math.min(reservasDoDia.length, 3);
+      for (let j = 0; j < count; j++) {
+        const d = document.createElement("span");
+        d.className = "dot";
+        d.title = `${reservasDoDia[j].horaInicio}–${reservasDoDia[j].horaFim} ${reservasDoDia[j].assunto}`;
+        dots.appendChild(d);
+      }
+      div.appendChild(dots);
+
+      if (reservasDoDia.length > 3) {
+        const badge = document.createElement("span");
+        badge.className = "count-badge";
+        badge.textContent = `+${reservasDoDia.length - 3}`;
+        div.appendChild(badge);
+      }
+    }
+
+    // Clique no dia: seleciona data e mostra reservas do dia
+    div.addEventListener("click", () => {
+      // Se o input existir (cenário antigo), atualiza. Mas mostramos sempre o resultado.
+      const inputData = document.getElementById("consultaData");
+      if (inputData) inputData.value = iso;
+
+      mostrarReservasDoDia(iso);
+
+      // Foco suave na área de resultado
+      const resultado = document.getElementById("resultadoConsulta");
+      if (resultado && typeof resultado.scrollIntoView === "function") {
+        resultado.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+
+    grid.appendChild(div);
+  }
+}
+
+function mostrarReservasDoDia(dataISO) {
+  if (!elementoExiste("resultadoConsulta")) return;
+  const resultado = document.getElementById("resultadoConsulta");
+  const reservasDoDia = reservas
+    .filter((r) => r.data === dataISO)
+    .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+
+  if (reservasDoDia.length === 0) {
+    resultado.innerHTML = `
+      <div class="consulta-result disponivel">
+        ✅ <strong>Dia totalmente livre!</strong><br>
+        <small>📅 ${formatarData(dataISO)}</small><br>
+        <small>🎯 Perfeito para agendar sua reunião!</small>
+      </div>
+    `;
+  } else {
+    const lista = reservasDoDia
+      .map(
+        (r) =>
+          `<div class="conflito-item">⏰ ${r.horaInicio} às ${r.horaFim} - ${r.assunto}</div>`
+      )
+      .join("");
+    resultado.innerHTML = `
+      <div class="consulta-result ocupada">
+        📅 <strong>Reservas do dia:</strong>
+        <div class="conflito-lista">${lista}</div>
+      </div>
+    `;
+  }
+}
+
 function verificarConflito(data, horaInicio, horaFim, excludeId = null) {
   return reservas.filter((reserva) => {
     if (excludeId && reserva.id === excludeId) return false;
@@ -685,6 +867,10 @@ function atualizarInterface() {
   if (elementoExiste("listaReservas")) {
     renderizarReservas();
   }
+  // Re-renderiza o calendário ao atualizar dados
+  if (elementoExiste("calGrid")) {
+    renderizarCalendario();
+  }
 }
 
 function definirDataMinima() {
@@ -779,7 +965,19 @@ monitorAuthState((user) => {
   const logoutContainer = document.getElementById("logoutContainer");
   if (user) {
     console.log("Usuário autenticado:", user.email);
+
+    // OPCIONAL: Validar domínio do email (remova se não necessário)
+    // const allowedDomains = ['pge.sc.gov.br', 'gmail.com']; // Adicione domínios permitidos
+    // const userDomain = user.email.split('@')[1];
+    // if (!allowedDomains.includes(userDomain)) {
+    //   mostrarMensagem(`❌ Acesso negado! Apenas emails de ${allowedDomains.join(', ')} são permitidos.`, 'erro');
+    //   logout();
+    //   return;
+    // }
+
     usuarioAutenticado = user;
+    logSeguranca("USUARIO_AUTENTICADO", { email: user.email, uid: user.uid });
+
     // Se não houver displayName, extrai a parte antes do '@'
     const userName = user.displayName
       ? user.displayName
@@ -797,6 +995,7 @@ monitorAuthState((user) => {
     mostrarModalLogin(false);
   } else {
     console.log("Nenhum usuário autenticado.");
+    logSeguranca("USUARIO_DESAUTENTICADO");
     usuarioAutenticado = null;
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) {
@@ -816,6 +1015,22 @@ document.addEventListener("DOMContentLoaded", function () {
       setInterval(verificarStatusAtual, 60000);
     }
   }, 100);
+
+  // Configuração do calendário: navegação e render inicial
+  const btnPrev = document.getElementById("calPrev");
+  const btnNext = document.getElementById("calNext");
+  if (btnPrev && btnNext) {
+    btnPrev.addEventListener("click", () => {
+      calDataAtual.setMonth(calDataAtual.getMonth() - 1);
+      renderizarCalendario();
+    });
+    btnNext.addEventListener("click", () => {
+      calDataAtual.setMonth(calDataAtual.getMonth() + 1);
+      renderizarCalendario();
+    });
+    // Render inicial após montar listeners
+    renderizarCalendario();
+  }
   const reservaForm = document.getElementById("reservaForm");
   if (reservaForm) {
     reservaForm.addEventListener("submit", async function (e) {

@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função auxiliar para verificar se usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Função para verificar se é o dono da reserva
+    function isOwner(reserva) {
+      return request.auth.token.email == reserva.data.responsavel;
+    }
+    
+    // Função para verificar margem de 30 minutos
+    function isValidReservationTime(data, horaInicio) {
+      let reservaTimestamp = timestamp.date(data + 'T' + horaInicio + ':00Z');
+      let minTime = request.time + duration.value(30, 'm');
+      return reservaTimestamp > minTime;
+    }
+    
+    // Regras para a coleção de reservas
+    match /reservas/{reservaId} {
+      
+      // Qualquer usuário autenticado pode LER reservas (para verificar disponibilidade)
+      allow read: if isAuthenticated();
+      
+      // Apenas usuários autenticados podem CRIAR reservas
+      allow create: if isAuthenticated() 
+        && request.resource.data.responsavel == request.auth.token.email
+        && request.resource.data.keys().hasAll(['responsavel', 'data', 'horaInicio', 'horaFim', 'assunto', 'codigo', 'criadaEm'])
+        && request.resource.data.assunto.size() >= 3
+        && request.resource.data.assunto.size() <= 200
+        && request.resource.data.horaInicio < request.resource.data.horaFim;
+      
+      // DELETE apenas se fornecer código correto OU for o dono da reserva
+      allow delete: if isAuthenticated() 
+        && (resource.data.responsavel == request.auth.token.email);
+      
+      // Não permitir UPDATE (editar reservas)
+      // Se quiser permitir, adicione regras específicas aqui
+      allow update: if false;
+    }
+  }
+}
