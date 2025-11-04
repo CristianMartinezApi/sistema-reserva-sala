@@ -6,7 +6,8 @@ service cloud.firestore {
     function isPgeEmail() {
       return request.auth != null &&
              request.auth.token.email != null &&
-             request.auth.token.email.matches('.*@pge\\.sc\\.gov\\.br$');
+             (request.auth.token.email.matches('.*@pge\\.sc\\.gov\\.br$') ||
+              request.auth.token.email == 'fernandesribe04@gmail.com'); // DEV: remover em produção
     }
     
     // Regras para a coleção de reservas

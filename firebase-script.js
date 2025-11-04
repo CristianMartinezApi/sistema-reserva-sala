@@ -24,6 +24,8 @@ const auth = getAuth(app); // Inicializa o Auth
 let reservas = [];
 let firebaseConectado = false;
 let usuarioAutenticado = null;
+// Unsubscribe do listener de reservas (para evitar escutas antes da autenticação e duplicadas)
+let unsubscribeReservas = null;
 
 // Rate limiting - máximo 5 reservas por hora
 const LIMITE_RESERVAS_POR_HORA = 5;
@@ -201,7 +203,16 @@ function carregarDados() {
       orderBy("data", "asc"),
       orderBy("horaInicio", "asc")
     );
-    onSnapshot(
+    // Garante que não existam múltiplos listeners ativos
+    if (typeof unsubscribeReservas === "function") {
+      try {
+        unsubscribeReservas();
+      } catch (e) {
+        console.warn("⚠️ Falha ao cancelar listener anterior:", e);
+      }
+      unsubscribeReservas = null;
+    }
+    const unsub = onSnapshot(
       q,
       (snapshot) => {
         console.log("📡 Dados recebidos do Firebase");
@@ -221,9 +232,19 @@ function carregarDados() {
         console.error("❌ Erro ao escutar Firestore:", error);
         logSeguranca("ERRO_FIRESTORE", { erro: error.message });
         atualizarStatusConexao(false);
-        mostrarMensagem("Erro ao conectar com o banco de dados", "erro");
+        if (error?.code === "permission-denied") {
+          mostrarMensagem(
+            "Permissão negada. Faça login com um email @pge.sc.gov.br.",
+            "erro"
+          );
+        } else {
+          mostrarMensagem("Erro ao conectar com o banco de dados", "erro");
+        }
       }
     );
+    // guarda unsubscribe globalmente e também retorna
+    unsubscribeReservas = unsub;
+    return unsub;
   } catch (error) {
     console.error("❌ Erro ao configurar Firestore:", error);
     logSeguranca("ERRO_CONFIGURACAO_FIRESTORE", { erro: error.message });
@@ -323,134 +344,78 @@ async function deletarReserva(id) {
 }
 
 function mostrarModalConfirmacao(dadosReserva) {
-  const modalAnterior = document.getElementById("modalCodigo");
-  if (modalAnterior) {
-    modalAnterior.remove();
-  }
-  const modal = document.createElement("div");
-  modal.id = "modalCodigo";
-  modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-                <div style="
-                    background: #e8f5e9;
-                    border: 2px solid #28a745;
-                    padding: 1.2rem;
-                    border-radius: 8px;
-                    text-align: center;
-                    margin-bottom: 1.2rem;
-                    color: #155724;
-                ">
-                    <strong>✔ Sua reserva foi registrada.</strong><br>
-                    <small>Cancelamento: apenas pelo responsável autenticado.</small>
-                </div>
-                    padding: 1.5rem;
-                    <button onclick="fecharModalConfirmacao()" style="
-                    text-align: center;
-                    margin-bottom: 1.5rem;
-                ">
-                    <h3 style="
-                        margin: 0 0 1rem 0;
-                        color: #856404;
-                        font-size: 1.1rem;
-                    ">🔐 Código de Cancelamento</h3>
-                    <div style="
-                        background: white;
-                        padding: 1rem;
-                        border-radius: 6px;
-                        border: 2px dashed #ffc107;
-                        margin-bottom: 1rem;
-                        overflow-wrap: break-word;
-                    ">
-                        <div style="
-                            font-family: 'Courier New', monospace;
-                            font-size: clamp(1.5rem, 4vw, 2rem);
-                            font-weight: bold;
-                            color: #dc3545;
-                            letter-spacing: 2px;
-      fecharModalConfirmacao();
-                            word-break: break-all;
-                        ">${codigo}</div>
-                    </div>
-  const fecharOriginal = window.fecharModalConfirmacao;
-  window.fecharModalConfirmacao = function () {
-                        color: #000;
-                        border: none;
-                        padding: 0.8rem 1.5rem;
-                        border-radius: 6px;
-function fecharModalConfirmacao() {
-                        color: white;
-                        border: none;
-                        padding: 1rem 2rem;
-    setTimeout(() => {
-      modal.remove();
-      document.body.style.overflow = "auto";
-    }, 300);
-                        font-weight: bold;
-                        cursor: pointer;
-window.fecharModalConfirmacao = fecharModalConfirmacao;
-                        max-width: 250px;
-                    " onmouseover="this.style.background='#218838'" onmouseout="this.style.background='#28a745'">
-                        ✅ Entendi, Fechar
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-  document.body.appendChild(modal);
-  // Clicar fora do conteúdo fecha o modal normalmente
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      fecharModalCodigo();
-    }
-  });
+  // Remove modal anterior, se existir
+  const antigo = document.getElementById("modalConfirmacaoReserva");
+  if (antigo) antigo.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "modalConfirmacaoReserva";
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  `;
+
+  const card = document.createElement("div");
+  card.style.cssText = `
+    width: min(520px, 92vw);
+    background: linear-gradient(180deg, rgba(232,245,233,0.95), rgba(255,255,255,0.95));
+    border: 1px solid #28a745;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    animation: slideInRight 0.25s ease;
+  `;
+  card.innerHTML = `
+    <div style="background:#e8f5e9;border:2px solid #28a745;padding:12px;border-radius:8px;text-align:center;color:#155724;margin-bottom:12px;">
+      <strong>✔ Sua reserva foi registrada.</strong><br>
+      <small>Cancelamento: apenas pelo responsável autenticado.</small>
+    </div>
+    <div style="display:grid;gap:8px;margin:12px 0;color:#1b1e22;">
+      <div><strong>📅 Data:</strong> ${formatarData(dadosReserva.data)}</div>
+      <div><strong>⏰ Horário:</strong> ${dadosReserva.horaInicio} às ${
+    dadosReserva.horaFim
+  }</div>
+      <div><strong>🧑‍💼 Responsável:</strong> ${dadosReserva.responsavel}</div>
+      <div><strong>📝 Assunto:</strong> ${dadosReserva.assunto}</div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
+      <button id="btnFecharConfirmacao" style="background:#28a745;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer;">✅ Entendi</button>
+    </div>
+  `;
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
   document.body.style.overflow = "hidden";
-  const fecharOriginal = window.fecharModalCodigo;
-  window.fecharModalCodigo = function () {
-    document.body.style.overflow = "auto";
-    fecharOriginal();
+
+  // Fechar: botão, clique fora e ESC
+  const fechar = () => fecharModalConfirmacao();
+  card.querySelector("#btnFecharConfirmacao").addEventListener("click", fechar);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) fechar();
+  });
+  const onEsc = (e) => {
+    if (e.key === "Escape") fechar();
   };
+  window.addEventListener("keydown", onEsc, { once: true });
 }
 
-function copiarCodigo(codigo) {
-  navigator.clipboard
-    .writeText(codigo)
-    .then(() => {
-      mostrarMensagem(
-        "📋 Código copiado para a área de transferência!",
-        "sucesso"
-      );
-      logSeguranca("CODIGO_COPIADO");
-    })
-    .catch(() => {
-      const textArea = document.createElement("textarea");
-      textArea.value = codigo;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      mostrarMensagem("📋 Código copiado!", "sucesso");
-    });
+function fecharModalConfirmacao() {
+  const overlay = document.getElementById("modalConfirmacaoReserva");
+  if (!overlay) return;
+  overlay.style.animation = "fadeOut 0.2s ease";
+  setTimeout(() => {
+    overlay.remove();
+    document.body.style.overflow = "auto";
+  }, 200);
 }
 
-function fecharModalCodigo() {
-  const modal = document.getElementById("modalCodigo");
-  if (modal) {
-    modal.style.animation = "fadeOut 0.3s ease";
-    setTimeout(() => {
-      modal.remove();
-      document.body.style.overflow = "auto";
-    }, 300);
-  }
-}
-
-window.copiarCodigo = copiarCodigo;
-window.fecharModalCodigo = fecharModalCodigo;
+// expõe para o HTML inline (caso existente)
+window.fecharModalConfirmacao = fecharModalConfirmacao;
 
 function formatarData(data) {
   return new Date(data + "T00:00:00").toLocaleDateString("pt-BR", {
@@ -907,6 +872,15 @@ monitorAuthState((user) => {
         "❌ Acesso negado! Apenas emails @pge.sc.gov.br são permitidos.",
         "erro"
       );
+      // Garante que não há listener ativo e limpa dados
+      if (typeof unsubscribeReservas === "function") {
+        try {
+          unsubscribeReservas();
+        } catch (_) {}
+        unsubscribeReservas = null;
+      }
+      reservas = [];
+      atualizarInterface();
       setTimeout(() => {
         logout();
       }, 100);
@@ -939,6 +913,10 @@ monitorAuthState((user) => {
       btnLogout.addEventListener("click", logout);
     }
     mostrarModalLogin(false);
+    // Inicia listener de dados somente após autenticação válida
+    if (!unsubscribeReservas) {
+      carregarDados();
+    }
   } else {
     console.log("Nenhum usuário autenticado.");
     logSeguranca("USUARIO_DESAUTENTICADO");
@@ -947,6 +925,15 @@ monitorAuthState((user) => {
     if (btnLogout) {
       btnLogout.remove();
     }
+    // Cancela listener e limpa interface
+    if (typeof unsubscribeReservas === "function") {
+      try {
+        unsubscribeReservas();
+      } catch (_) {}
+      unsubscribeReservas = null;
+    }
+    reservas = [];
+    atualizarInterface();
     mostrarModalLogin(true);
   }
 });
@@ -955,7 +942,6 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("🚀 Iniciando aplicação com segurança...");
   logSeguranca("APLICACAO_INICIADA");
   setTimeout(() => {
-    carregarDados();
     definirDataMinima();
     if (elementoExiste("statusAtual")) {
       setInterval(verificarStatusAtual, 60000);
