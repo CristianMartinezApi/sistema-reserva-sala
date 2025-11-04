@@ -26,6 +26,8 @@ let firebaseConectado = false;
 let usuarioAutenticado = null;
 // Unsubscribe do listener de reservas (para evitar escutas antes da autenticação e duplicadas)
 let unsubscribeReservas = null;
+// Cache local para reduzir tempo de primeira renderização após login
+const CACHE_CHAVE = "reservasCache";
 
 // Rate limiting - máximo 5 reservas por hora
 const LIMITE_RESERVAS_POR_HORA = 5;
@@ -146,6 +148,22 @@ function atualizarStatusConexao(conectado) {
   }
 }
 
+function carregarReservasDoCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_CHAVE);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return false;
+    reservas = parsed;
+    atualizarInterface();
+    console.log(`🗂️ Carregado do cache: ${reservas.length} reservas`);
+    return true;
+  } catch (e) {
+    console.warn("Falha ao carregar cache local de reservas:", e);
+    return false;
+  }
+}
+
 function verificarStatusAtual() {
   if (!elementoExiste("statusAtual")) {
     console.warn("⚠️ Elemento statusAtual não encontrado");
@@ -225,6 +243,11 @@ function carregarDados() {
         });
         console.log(`✅ ${reservas.length} reservas carregadas`);
         logSeguranca("DADOS_CARREGADOS", { quantidade: reservas.length });
+        try {
+          localStorage.setItem(CACHE_CHAVE, JSON.stringify(reservas));
+        } catch (e) {
+          // Cache pode falhar (quota), não é crítico
+        }
         atualizarStatusConexao(true);
         atualizarInterface();
       },
@@ -828,6 +851,12 @@ document.addEventListener("DOMContentLoaded", function () {
           "userGreeting"
         ).textContent = `Bem-vindo, ${userName}`;
         mostrarModalLogin(false);
+        // Se domínio permitido, renderiza cache já e inicia listener cedo
+        const domain = (result.user.email || "").split("@")[1] || "";
+        if (domain === "pge.sc.gov.br") {
+          carregarReservasDoCache();
+          if (!unsubscribeReservas) carregarDados();
+        }
       } catch (error) {
         mostrarMensagem("Erro no login: " + error.message, "erro");
       }
@@ -913,10 +942,9 @@ monitorAuthState((user) => {
       btnLogout.addEventListener("click", logout);
     }
     mostrarModalLogin(false);
-    // Inicia listener de dados somente após autenticação válida
-    if (!unsubscribeReservas) {
-      carregarDados();
-    }
+    // Renderiza imediatamente a partir do cache e inicia listener em seguida
+    carregarReservasDoCache();
+    if (!unsubscribeReservas) carregarDados();
   } else {
     console.log("Nenhum usuário autenticado.");
     logSeguranca("USUARIO_DESAUTENTICADO");

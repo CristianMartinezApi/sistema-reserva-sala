@@ -22,15 +22,17 @@ try {
       ? document.querySelector('meta[name="app-check-site-key"]')
       : null;
   const siteKey = meta && meta.content ? meta.content.trim() : "";
-  if (siteKey) {
+  const disabledValues = new Set(["", "DISABLED", "disabled", "SEU_SITE_KEY"]);
+  if (!disabledValues.has(siteKey)) {
     initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
     console.log("🛡️ Firebase App Check habilitado.");
   } else {
-    console.warn(
-      'App Check não inicializado: defina a meta tag <meta name="app-check-site-key" content="SEU_SITE_KEY"> no index.html'
+    // Modo opcional: sem chave, não inicializa e não polui o console com warnings em dev
+    console.info(
+      '🛡️ App Check desativado (sem chave). Para habilitar em produção, defina <meta name="app-check-site-key" content="SUA_CHAVE_SITE"> no index.html.'
     );
   }
 } catch (e) {
