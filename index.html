@@ -238,7 +238,20 @@
     <div id="loginModal" class="modal">
       <div class="modal-content">
         <h2>Login</h2>
-
+        <div
+          id="loginErrorMsg"
+          style="
+            display: none;
+            color: #dc3545;
+            background: #fff5f5;
+            border: 1px solid #dc3545;
+            border-radius: 6px;
+            padding: 0.8em 1em;
+            margin-bottom: 1em;
+            text-align: center;
+            font-weight: 600;
+          "
+        ></div>
         <!-- Botão para login com Google -->
         <button id="btnLoginGoogle" class="google-btn">
           <img
@@ -247,7 +260,6 @@
           />
           Entrar com Google
         </button>
-
         <button id="fecharModal" class="close-btn">Fechar</button>
       </div>
     </div>

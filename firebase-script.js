@@ -966,14 +966,33 @@ monitorAuthState((user) => {
   if (user) {
     console.log("Usuário autenticado:", user.email);
 
-    // OPCIONAL: Validar domínio do email (remova se não necessário)
-    // const allowedDomains = ['pge.sc.gov.br', 'gmail.com']; // Adicione domínios permitidos
-    // const userDomain = user.email.split('@')[1];
-    // if (!allowedDomains.includes(userDomain)) {
-    //   mostrarMensagem(`❌ Acesso negado! Apenas emails de ${allowedDomains.join(', ')} são permitidos.`, 'erro');
-    //   logout();
-    //   return;
-    // }
+    // Regra: apenas emails @pge.sc.gov.br podem acessar
+    const userDomain = user.email.split("@")[1];
+    if (userDomain !== "pge.sc.gov.br") {
+      // Mostra mensagem de acesso negado no modal
+      const loginErrorMsg = document.getElementById("loginErrorMsg");
+      if (loginErrorMsg) {
+        loginErrorMsg.textContent =
+          "Acesso negado. Apenas usuários com email @pge.sc.gov.br podem acessar este sistema.";
+        loginErrorMsg.style.display = "block";
+      }
+      mostrarMensagem(
+        "❌ Acesso negado! Apenas emails @pge.sc.gov.br são permitidos.",
+        "erro"
+      );
+      setTimeout(() => {
+        logout();
+      }, 100);
+      return;
+    }
+    // Limpa mensagem de erro ao abrir modal de login
+    const loginModal = document.getElementById("loginModal");
+    if (loginModal) {
+      loginModal.addEventListener("transitionend", function () {
+        const loginErrorMsg = document.getElementById("loginErrorMsg");
+        if (loginErrorMsg) loginErrorMsg.style.display = "none";
+      });
+    }
 
     usuarioAutenticado = user;
     logSeguranca("USUARIO_AUTENTICADO", { email: user.email, uid: user.uid });
