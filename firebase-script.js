@@ -484,9 +484,10 @@ function mostrarModalCodigo(codigo, dadosReserva) {
         </div>
     `;
   document.body.appendChild(modal);
+  // Clicar fora do conteúdo fecha o modal normalmente
   modal.addEventListener("click", (e) => {
     if (e.target === modal) {
-      mostrarMensagem('⚠️ Clique em "Entendi, Fechar" para continuar', "aviso");
+      fecharModalCodigo();
     }
   });
   document.body.style.overflow = "hidden";
@@ -522,7 +523,10 @@ function fecharModalCodigo() {
   const modal = document.getElementById("modalCodigo");
   if (modal) {
     modal.style.animation = "fadeOut 0.3s ease";
-    setTimeout(() => modal.remove(), 300);
+    setTimeout(() => {
+      modal.remove();
+      document.body.style.overflow = "auto";
+    }, 300);
   }
 }
 
