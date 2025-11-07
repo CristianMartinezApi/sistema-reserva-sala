@@ -291,7 +291,7 @@ function carregarDados() {
         atualizarStatusConexao(false);
         if (error?.code === "permission-denied") {
           mostrarMensagem(
-            "Permissão negada. Faça login com um email @pge.sc.gov.br.",
+            "Permissão negada. Faça login para acessar o sistema.",
             "erro"
           );
         } else {
@@ -929,12 +929,9 @@ document.addEventListener("DOMContentLoaded", function () {
           "userGreeting"
         ).textContent = `Bem-vindo, ${userName}`;
         mostrarModalLogin(false);
-        // Se domínio permitido, renderiza cache já e inicia listener cedo
-        const domain = (result.user.email || "").split("@")[1] || "";
-        if (domain === "pge.sc.gov.br") {
-          carregarReservasDoCache();
-          if (!unsubscribeReservas) carregarDados();
-        }
+        // Após login bem-sucedido, renderiza cache e inicia listener
+        carregarReservasDoCache();
+        if (!unsubscribeReservas) carregarDados();
       } catch (error) {
         mostrarMensagem("Erro no login: " + error.message, "erro");
       }
@@ -965,34 +962,6 @@ monitorAuthState((user) => {
   if (user) {
     console.log("Usuário autenticado:", user.email);
 
-    // Regra: apenas emails @pge.sc.gov.br podem acessar
-    const userDomain = user.email.split("@")[1];
-    if (userDomain !== "pge.sc.gov.br") {
-      // Mostra mensagem de acesso negado no modal
-      const loginErrorMsg = document.getElementById("loginErrorMsg");
-      if (loginErrorMsg) {
-        loginErrorMsg.textContent =
-          "Acesso negado. Apenas usuários com email @pge.sc.gov.br podem acessar este sistema.";
-        loginErrorMsg.style.display = "block";
-      }
-      mostrarMensagem(
-        "❌ Acesso negado! Apenas emails @pge.sc.gov.br são permitidos.",
-        "erro"
-      );
-      // Garante que não há listener ativo e limpa dados
-      if (typeof unsubscribeReservas === "function") {
-        try {
-          unsubscribeReservas();
-        } catch (_) {}
-        unsubscribeReservas = null;
-      }
-      reservas = [];
-      atualizarInterface();
-      setTimeout(() => {
-        logout();
-      }, 100);
-      return;
-    }
     // Limpa mensagem de erro ao abrir modal de login
     const loginModal = document.getElementById("loginModal");
     if (loginModal) {

@@ -1,5 +1,251 @@
 # 📝 Changelog de Segurança
 
+## 🎉 [3.1] - 07/11/2025 - AUTENTICAÇÃO ABERTA
+
+### ✅ Mudança: Restrição de Domínio Removida
+
+**Motivo:** Abrir acesso para qualquer usuário autenticado via Google (não apenas @pge.sc.gov.br)
+
+#### 🔐 1. Firestore Rules Atualizadas
+
+- **Arquivo:** `firestore.rules`
+- **Mudança:** Função `isPgeEmail()` → `isAuthenticated()`
+- **Status:** ✅ **DEPLOYADO** via `firebase deploy --only firestore:rules`
+
+**Antes:**
+
+```javascript
+function isPgeEmail() {
+  return (
+    request.auth != null &&
+    request.auth.token.email != null &&
+    request.auth.token.email.matches(".*@pge\\.sc\\.gov\\.br$")
+  );
+}
+```
+
+**Depois:**
+
+```javascript
+function isAuthenticated() {
+  return request.auth != null && request.auth.token.email != null;
+}
+```
+
+**Impacto:** Sistema agora aceita **QUALQUER email autenticado** via Google.
+
+---
+
+#### 📊 2. Código JavaScript Atualizado
+
+- **Arquivo:** `firebase-script.js`
+- **Mudanças realizadas:**
+
+**2.1 - Monitoramento de Autenticação (linha ~960)**
+
+Removido bloco de validação de domínio:
+
+```javascript
+// REMOVIDO:
+const userDomain = user.email.split("@")[1];
+if (userDomain !== "pge.sc.gov.br") {
+  // Bloquear acesso...
+  logout();
+  return;
+}
+```
+
+**2.2 - Login com Google (linha ~930)**
+
+Removido filtro de domínio:
+
+```javascript
+// REMOVIDO:
+const domain = (result.user.email || "").split("@")[1] || "";
+if (domain === "pge.sc.gov.br") {
+  carregarReservasDoCache();
+  if (!unsubscribeReservas) carregarDados();
+}
+
+// AGORA (sempre executa):
+carregarReservasDoCache();
+if (!unsubscribeReservas) carregarDados();
+```
+
+**2.3 - Mensagens de Erro (linha ~290)**
+
+Atualizada mensagem genérica:
+
+```javascript
+// ANTES:
+"Permissão negada. Faça login com um email @pge.sc.gov.br.";
+
+// DEPOIS:
+"Permissão negada. Faça login para acessar o sistema.";
+```
+
+---
+
+### 📦 Deploy Realizado
+
+```bash
+$ firebase deploy --only firestore:rules
+
+=== Deploying to 'do-sistema-de-reserva-sala'...
+
+i  deploying firestore
++  cloud.firestore: rules file compiled successfully
++  firestore: released rules firestore.rules to cloud.firestore
+
++  Deploy complete!
+```
+
+✅ **Status:** Deploy bem-sucedido, sem erros de compilação
+
+---
+
+### 📄 Documentação Atualizada
+
+#### Arquivo: `SECURITY.md`
+
+**Alterações:**
+
+- ✅ Resumo executivo atualizado
+- ✅ Item 2: "Email de dev REMOVIDO" → "Autenticação aberta"
+- ✅ Item 6: "apenas @pge.sc.gov.br" → "qualquer email autenticado"
+- ✅ Seção "NOVAS IMPLEMENTAÇÕES": Nova entrada para remoção de restrição
+- ✅ Checklist atualizado
+- ✅ Versão: 3.0 → 3.1
+
+---
+
+## 📊 Comparativo de Mudanças
+
+| Aspecto                   | Versão 3.0               | Versão 3.1               |
+| ------------------------- | ------------------------ | ------------------------ |
+| **Domínio permitido**     | ⚠️ Apenas @pge.sc.gov.br | ✅ Qualquer email Google |
+| **Função de validação**   | `isPgeEmail()`           | `isAuthenticated()`      |
+| **Validação no frontend** | ✅ Verifica domínio      | ✅ Apenas autenticação   |
+| **Validação no backend**  | ✅ Regex de domínio      | ✅ Email não nulo        |
+| **Mensagens de erro**     | Específicas para PGE     | Genéricas                |
+
+---
+
+## 🎯 Sistema Atual (v3.1)
+
+### ✅ Segurança Mantida
+
+**Autenticação:**
+
+- ✅ Google Auth obrigatório
+- ✅ Modal de bloqueio (não pode fechar sem login)
+- ✅ Validação no frontend e backend
+
+**Autorização:**
+
+- ✅ Firestore Rules validam cada operação
+- ✅ Cancelamento apenas pelo proprietário
+- ✅ Validação de formatos e tamanhos
+
+**Auditoria:**
+
+- ✅ Logs no console (18+ pontos)
+- ✅ Logs persistentes no Firestore
+- ✅ Coleção protegida e imutável
+
+**Proteção de Dados:**
+
+- ✅ Sanitização de entrada
+- ✅ Validação de tipos
+- ✅ Limite de caracteres
+- ✅ Validação de formatos (data/hora)
+
+**Headers de Segurança:**
+
+- ✅ CSP (Content Security Policy)
+- ✅ X-Frame-Options (anti-clickjacking)
+- ✅ X-Content-Type-Options (anti-MIME sniffing)
+- ✅ X-XSS-Protection
+- ✅ Referrer-Policy
+
+---
+
+## 🔍 Regras Atualizadas
+
+### Firestore Rules (v3.1)
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null &&
+             request.auth.token.email != null;
+    }
+
+    match /reservas/{reservaId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasAll([...])
+        && request.resource.data.responsavelEmail == request.auth.token.email
+        && /* validações de formato e tamanho */;
+
+      allow delete: if isAuthenticated()
+        && resource.data.responsavelEmail == request.auth.token.email;
+
+      allow update: if false;
+    }
+
+    match /security_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if false;
+      allow update, delete: if false;
+    }
+  }
+}
+```
+
+---
+
+## ⚠️ Considerações de Segurança
+
+### Ainda Protegido:
+
+- ✅ Apenas usuários autenticados podem acessar
+- ✅ Cada usuário só pode deletar suas próprias reservas
+- ✅ Validação rigorosa de dados (formato, tamanho, tipos)
+- ✅ Logs de auditoria para rastreamento
+- ✅ Rate limiting (5 reservas/hora)
+- ✅ Headers de segurança configurados
+
+### Novo Comportamento:
+
+- ℹ️ Qualquer conta Google pode criar reservas
+- ℹ️ Não há mais restrição de domínio organizacional
+- ℹ️ Sistema acessível para uso público ou multi-organizacional
+
+---
+
+## 📞 Suporte
+
+**Em caso de dúvidas sobre segurança:**
+
+- 📧 Email: eppe@pge.sc.gov.br
+- 📱 Telefone: (48) 3664-5938
+- 🔗 Console: https://console.firebase.google.com/project/do-sistema-de-reserva-sala
+
+---
+
+**Responsável pelas mudanças:** GitHub Copilot  
+**Data:** 07/11/2025  
+**Versão do sistema:** 3.1 - Autenticação Aberta
+
+---
+
+## 📜 Histórico Anterior
+
 ## 🎉 [3.0] - 07/11/2025 - PRODUÇÃO PRONTA
 
 ### ✅ Implementações de Segurança (SEM gerar valores)

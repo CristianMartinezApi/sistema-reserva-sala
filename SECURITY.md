@@ -6,12 +6,12 @@
 
 ### ✅ Implementações Realizadas (15/15 requisitos fundamentais)
 
-1. ✅ **Firestore Security Rules** - restrição de domínio e validação avançada ✅ **DEPLOYADAS**
-2. ✅ **Email de dev REMOVIDO** - apenas @pge.sc.gov.br em produção ✅ **ATIVO**
+1. ✅ **Firestore Security Rules** - autenticação obrigatória e validação avançada ✅ **DEPLOYADAS**
+2. ✅ **Autenticação aberta** - qualquer email autenticado pode acessar ✅ **ATIVO**
 3. ✅ **Logs persistentes ATIVADOS** - auditoria no Firestore ✅ **ATIVO**
 4. ✅ **Validação de formatos** - data (YYYY-MM-DD) e hora (HH:MM) ✅ **DEPLOYADO**
 5. ✅ **Firebase App Check** - suporte implementado (aguarda chave)
-6. ✅ **Autenticação obrigatória** - apenas @pge.sc.gov.br
+6. ✅ **Autenticação obrigatória** - login com Google necessário
 7. ✅ **Cancelamento seguro** - apenas pelo responsável autenticado
 8. ✅ **Validação de dados** - sanitização e verificação de tipos
 9. ✅ **Rate limiting** - 5 reservas por hora (frontend)
@@ -55,7 +55,7 @@
 
 1. ✅ **Firebase Security Rules** - arquivo `firestore.rules` criado e funcional
 
-   - Restrição de domínio @pge.sc.gov.br ✅ **SEM exceções de dev**
+   - Autenticação obrigatória (qualquer email do Google)
    - Validação de campos obrigatórios
    - Validação de formatos (data YYYY-MM-DD, hora HH:MM)
    - Validação de tamanhos (responsável 3-100, assunto 3-200, observações 0-500)
@@ -318,7 +318,24 @@ function isPgeEmail() {
 ✅ **Deploy realizado:** `firebase deploy --only firestore:rules`  
 ✅ **Status:** Sistema agora aceita APENAS emails @pge.sc.gov.br
 
-### 2. ✅ Logs Persistentes ATIVADOS
+### 2. ✅ Validação de Formatos nas Firestore Rules (mantida)
+
+**Validações implementadas:**
+
+```javascript
+allow create: if isAuthenticated()
+  // ... validações existentes ...
+  && request.resource.data.responsavel.size() >= 3
+  && request.resource.data.responsavel.size() <= 100
+  && request.resource.data.data.matches('\\d{4}-\\d{2}-\\d{2}') // YYYY-MM-DD
+  && request.resource.data.horaInicio.matches('\\d{2}:\\d{2}') // HH:MM
+  && request.resource.data.horaFim.matches('\\d{2}:\\d{2}') // HH:MM
+  && (!request.resource.data.keys().hasAny(['observacoes']) ||
+      (request.resource.data.observacoes is string &&
+       request.resource.data.observacoes.size() <= 500));
+```
+
+### 3. ✅ Logs Persistentes ATIVADOS
 
 **Antes (comentado):**
 
@@ -341,12 +358,12 @@ logSegurancaPersistente(acao, dados);
 - Coleção `security_logs` protegida por regras
 - Apenas usuários @pge.sc.gov.br podem criar logs
 
-### 3. ✅ Validação de Formatos nas Firestore Rules
+### 4. ✅ Validação de Formatos e Tamanhos (07/11/2025 - mantida)
 
 **Novas validações adicionadas:**
 
 ```javascript
-allow create: if isPgeEmail()
+allow create: if isAuthenticated()
   // ... validações existentes ...
   && request.resource.data.responsavel.size() >= 3
   && request.resource.data.responsavel.size() <= 100
@@ -442,7 +459,7 @@ firebase deploy --only firestore:rules
 ### ✅ Implementado no Código
 
 - [x] **Firestore Security Rules** - arquivo `firestore.rules` criado e funcional ✅ **DEPLOYADO (07/11/2025)**
-- [x] **Email de dev REMOVIDO** - apenas @pge.sc.gov.br em produção ✅ **ATIVO**
+- [x] **Autenticação aberta** - qualquer email autenticado pode acessar ✅ **ATIVO (07/11/2025)**
 - [x] **Validação de formatos** - data (YYYY-MM-DD) e hora (HH:MM) ✅ **DEPLOYADO**
 - [x] **Validação de tamanhos** - responsável (3-100), assunto (3-200), observações (0-500) ✅ **DEPLOYADO**
 - [x] **Firebase App Check** - suporte implementado em `firebase-config.js`
@@ -452,7 +469,7 @@ firebase deploy --only firestore:rules
 - [x] **Logs persistentes ATIVADOS** - coleção `security_logs` funcional ✅ **ATIVO (07/11/2025)**
 - [x] **Rate limiting no frontend** - localStorage (5 reservas/hora)
 - [x] **Validação de antecedência** - 30 minutos mínimo
-- [x] **Restrição de domínio** - apenas @pge.sc.gov.br (SEM exceções)
+- [x] **Autenticação obrigatória** - Google Auth necessário
 - [x] **Filtro de reservas antigas** - remove automaticamente reuniões encerradas
 - [x] **Cache inteligente** - sincronização em tempo real com indicador visual
 - [x] **Headers de segurança** - CSP, X-Frame-Options, etc via `firebase.json`
@@ -501,5 +518,5 @@ firebase deploy --only firestore:rules
 ---
 
 **Última Atualização:** 07/11/2025  
-**Versão:** 3.0 (Segurança Máxima - Produção Pronta)  
+**Versão:** 3.1 (Autenticação Aberta)  
 **Status:** ✅ Todas implementações core concluídas | ⚠️ Configurações opcionais pendentes no Console Firebase

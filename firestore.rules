@@ -2,21 +2,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Verifica se o email é do domínio @pge.sc.gov.br
-    function isPgeEmail() {
+    // Verifica se o usuário está autenticado
+    function isAuthenticated() {
       return request.auth != null &&
-             request.auth.token.email != null &&
-             request.auth.token.email.matches('.*@pge\\.sc\\.gov\\.br$');
+             request.auth.token.email != null;
     }
     
     // Regras para a coleção de reservas
     match /reservas/{reservaId} {
       
-      // Apenas usuários autenticados do domínio PGE podem LER (para verificar disponibilidade)
-      allow read: if isPgeEmail();
+      // Apenas usuários autenticados podem LER (para verificar disponibilidade)
+      allow read: if isAuthenticated();
       
-      // Criar: autenticado + domínio PGE + validação de campos
-      allow create: if isPgeEmail()
+      // Criar: autenticado + validação de campos
+      allow create: if isAuthenticated()
         && request.resource.data.keys().hasAll(['responsavel', 'responsavelEmail', 'data', 'horaInicio', 'horaFim', 'assunto', 'criadaEm'])
         && request.resource.data.responsavelEmail == request.auth.token.email
         && request.resource.data.responsavel is string
@@ -34,8 +33,8 @@ service cloud.firestore {
         && request.resource.data.horaInicio < request.resource.data.horaFim
         && (!request.resource.data.keys().hasAny(['observacoes']) || (request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 500));
       
-      // Delete: autenticado + domínio PGE + dono da reserva (por email)
-      allow delete: if isPgeEmail() && resource.data.responsavelEmail == request.auth.token.email;
+      // Delete: autenticado + dono da reserva (por email)
+      allow delete: if isAuthenticated() && resource.data.responsavelEmail == request.auth.token.email;
       
       // Updates não permitidos
       allow update: if false;
@@ -44,7 +43,7 @@ service cloud.firestore {
     // Regras para logs de segurança (opcional - para auditoria persistente)
     match /security_logs/{logId} {
       // Apenas usuários autenticados podem criar logs
-      allow create: if isPgeEmail();
+      allow create: if isAuthenticated();
       
       // Apenas admins podem ler logs (adicionar lista de admins futuramente)
       allow read: if false; // Por enquanto bloqueado - configurar admins depois
