@@ -124,6 +124,30 @@ function logSeguranca(acao, dados = {}) {
     dados,
   };
   console.log("🔐 Log de Segurança:", logEntry);
+
+  // ✅ Log persistente no Firestore ativado para auditoria
+  logSegurancaPersistente(acao, dados);
+}
+
+// Função para salvar logs persistentes no Firestore (opcional)
+async function logSegurancaPersistente(acao, dados = {}) {
+  try {
+    // Só loga se usuário estiver autenticado
+    if (!usuarioAutenticado) return;
+
+    await addDoc(collection(db, "security_logs"), {
+      acao,
+      dados,
+      timestamp: serverTimestamp(),
+      userId: usuarioAutenticado.uid,
+      userEmail: usuarioAutenticado.email,
+      userAgent: navigator.userAgent.substring(0, 200),
+      // IP será "N/A" no cliente - para obter IP real, usar Cloud Functions
+    });
+  } catch (error) {
+    // Falha silenciosa - não deve impedir operação principal
+    console.warn("⚠️ Falha ao salvar log persistente:", error);
+  }
 }
 
 function elementoExiste(id) {
@@ -139,7 +163,7 @@ function atualizarStatusConexao(conectado) {
     firebaseConectado = true;
     setTimeout(() => {
       statusDiv.style.display = "none";
-    }, 3000);
+    }, 5000); // Aumentado de 3s para 5s
   } else {
     statusDiv.innerHTML = "❌ Erro de conexão - Verifique sua internet";
     statusDiv.style.background = "#dc3545";
@@ -155,8 +179,12 @@ function carregarReservasDoCache() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return false;
     reservas = parsed;
+    console.log(
+      `🗂️ [CACHE] Carregado do cache local: ${reservas.length} reservas (aguardando dados reais...)`
+    );
+    // Mostra badge "carregando do servidor" para deixar claro que não são dados finais
+    mostrarBadgeSincronizacao("📡 Sincronizando com servidor...");
     atualizarInterface();
-    console.log(`🗂️ Carregado do cache: ${reservas.length} reservas`);
     return true;
   } catch (e) {
     console.warn("Falha ao carregar cache local de reservas:", e);
@@ -233,7 +261,7 @@ function carregarDados() {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        console.log("📡 Dados recebidos do Firebase");
+        console.log("📡 [FIREBASE] Dados recebidos em tempo real do Firestore");
         reservas = [];
         snapshot.forEach((doc) => {
           reservas.push({
@@ -241,13 +269,19 @@ function carregarDados() {
             ...doc.data(),
           });
         });
-        console.log(`✅ ${reservas.length} reservas carregadas`);
+        console.log(
+          `✅ [FIREBASE] ${reservas.length} reservas sincronizadas do servidor`
+        );
         logSeguranca("DADOS_CARREGADOS", { quantidade: reservas.length });
         try {
           localStorage.setItem(CACHE_CHAVE, JSON.stringify(reservas));
+          console.log("💾 Cache local atualizado com dados do servidor");
         } catch (e) {
           // Cache pode falhar (quota), não é crítico
+          console.warn("⚠️ Falha ao salvar cache:", e);
         }
+        // Remove badge de sincronização
+        removerBadgeSincronizacao();
         atualizarStatusConexao(true);
         atualizarInterface();
       },
@@ -731,6 +765,33 @@ async function cancelarReserva(id) {
 
 window.cancelarReserva = cancelarReserva;
 
+function mostrarBadgeSincronizacao(texto) {
+  removerBadgeSincronizacao(); // Remove anterior se existir
+  const badge = document.createElement("div");
+  badge.id = "badgeSincronizacao";
+  badge.textContent = texto;
+  badge.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, #17a2b8, #3498db);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 999;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    animation: pulse 1.5s ease-in-out infinite;
+  `;
+  document.body.appendChild(badge);
+}
+
+function removerBadgeSincronizacao() {
+  const badge = document.getElementById("badgeSincronizacao");
+  if (badge) badge.remove();
+}
+
 function mostrarMensagem(texto, tipo = "info") {
   const mensagemAnterior = document.querySelector(".mensagem-sistema");
   if (mensagemAnterior) {
@@ -751,7 +812,17 @@ function mostrarMensagem(texto, tipo = "info") {
         max-width: 350px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         animation: slideInRight 0.3s ease;
+        cursor: pointer;
     `;
+
+  // Adiciona tooltip para indicar que é clicável
+  mensagem.title = "Clique para fechar";
+
+  // Permite fechar clicando na mensagem
+  mensagem.addEventListener("click", () => {
+    mensagem.style.animation = "slideOutRight 0.3s ease";
+    setTimeout(() => mensagem.remove(), 300);
+  });
   switch (tipo) {
     case "sucesso":
       mensagem.style.background = "linear-gradient(135deg, #28a745, #20c997)";
@@ -767,12 +838,19 @@ function mostrarMensagem(texto, tipo = "info") {
       mensagem.style.background = "linear-gradient(135deg, #17a2b8, #3498db)";
   }
   document.body.appendChild(mensagem);
+
+  // Tempo de exibição baseado no tipo e tamanho da mensagem
+  const tempoBase = 6000; // Base de 6 segundos (aumentado de 4s)
+  const tempoExtra = Math.min(texto.length * 30, 4000); // Até 4s extras para mensagens longas
+  const tempoTotal =
+    tipo === "erro" || tipo === "aviso" ? tempoBase + tempoExtra : tempoBase;
+
   setTimeout(() => {
     if (mensagem.parentNode) {
       mensagem.style.animation = "slideOutRight 0.3s ease";
       setTimeout(() => mensagem.remove(), 300);
     }
-  }, 4000);
+  }, tempoTotal);
 }
 
 function atualizarInterface() {
@@ -1198,6 +1276,11 @@ style.textContent = `
     @keyframes fadeOut {
         from { opacity: 1; }
         to { opacity: 0; }
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.05); }
     }
 `;
 document.head.appendChild(style);

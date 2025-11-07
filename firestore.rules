@@ -6,8 +6,7 @@ service cloud.firestore {
     function isPgeEmail() {
       return request.auth != null &&
              request.auth.token.email != null &&
-             (request.auth.token.email.matches('.*@pge\\.sc\\.gov\\.br$') ||
-              request.auth.token.email == 'fernandesribe04@gmail.com'); // DEV: remover em produção
+             request.auth.token.email.matches('.*@pge\\.sc\\.gov\\.br$');
     }
     
     // Regras para a coleção de reservas
@@ -20,18 +19,38 @@ service cloud.firestore {
       allow create: if isPgeEmail()
         && request.resource.data.keys().hasAll(['responsavel', 'responsavelEmail', 'data', 'horaInicio', 'horaFim', 'assunto', 'criadaEm'])
         && request.resource.data.responsavelEmail == request.auth.token.email
+        && request.resource.data.responsavel is string
+        && request.resource.data.responsavel.size() >= 3
+        && request.resource.data.responsavel.size() <= 100
         && request.resource.data.assunto is string
         && request.resource.data.assunto.size() >= 3 
         && request.resource.data.assunto.size() <= 200
+        && request.resource.data.data is string
+        && request.resource.data.data.matches('\\d{4}-\\d{2}-\\d{2}') // Formato YYYY-MM-DD
         && request.resource.data.horaInicio is string
+        && request.resource.data.horaInicio.matches('\\d{2}:\\d{2}') // Formato HH:MM
         && request.resource.data.horaFim is string
-        && request.resource.data.horaInicio < request.resource.data.horaFim;
+        && request.resource.data.horaFim.matches('\\d{2}:\\d{2}') // Formato HH:MM
+        && request.resource.data.horaInicio < request.resource.data.horaFim
+        && (!request.resource.data.keys().hasAny(['observacoes']) || (request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 500));
       
       // Delete: autenticado + domínio PGE + dono da reserva (por email)
       allow delete: if isPgeEmail() && resource.data.responsavelEmail == request.auth.token.email;
       
       // Updates não permitidos
       allow update: if false;
+    }
+    
+    // Regras para logs de segurança (opcional - para auditoria persistente)
+    match /security_logs/{logId} {
+      // Apenas usuários autenticados podem criar logs
+      allow create: if isPgeEmail();
+      
+      // Apenas admins podem ler logs (adicionar lista de admins futuramente)
+      allow read: if false; // Por enquanto bloqueado - configurar admins depois
+      
+      // Logs não podem ser modificados ou deletados
+      allow update, delete: if false;
     }
   }
 }
