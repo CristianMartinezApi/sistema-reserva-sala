@@ -665,6 +665,38 @@ function verificarConflito(data, horaInicio, horaFim, excludeId = null) {
   });
 }
 
+// Função para criar ícone de calendário SVG com data dinâmica
+function criarIconeCalendario(dataString) {
+  const data = new Date(dataString + "T00:00:00");
+  const dia = data.getDate();
+  const mes = data
+    .toLocaleDateString("pt-BR", { month: "short" })
+    .toUpperCase()
+    .replace(".", "");
+
+  return `
+    <svg class="calendar-icon" width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+      <!-- Fundo do calendário -->
+      <rect x="5" y="10" width="50" height="45" rx="4" fill="#fff" stroke="#667eea" stroke-width="2"/>
+      
+      <!-- Cabeçalho vermelho -->
+      <rect x="5" y="10" width="50" height="15" rx="4" fill="#dc3545"/>
+      <rect x="5" y="20" width="50" height="5" fill="#dc3545"/>
+      
+      <!-- Argolas do calendário -->
+      <circle cx="15" cy="12" r="2" fill="#fff"/>
+      <circle cx="30" cy="12" r="2" fill="#fff"/>
+      <circle cx="45" cy="12" r="2" fill="#fff"/>
+      
+      <!-- Dia (grande) -->
+      <text x="30" y="43" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333" text-anchor="middle">${dia}</text>
+      
+      <!-- Mês (pequeno) -->
+      <text x="30" y="52" font-family="Arial, sans-serif" font-size="8" fill="#666" text-anchor="middle">${mes}</text>
+    </svg>
+  `;
+}
+
 function renderizarReservas() {
   if (!elementoExiste("listaReservas") || !elementoExiste("contadorReservas")) {
     console.warn("⚠️ Elementos da lista de reservas não encontrados");
@@ -701,6 +733,9 @@ function renderizarReservas() {
     .map(
       (reserva) => `
         <div class="reserva-item">
+            <div class="calendar-icon-container">
+                ${criarIconeCalendario(reserva.data)}
+            </div>
             <div class="reserva-info">
                 <h3>${reserva.assunto}</h3>
                 <p><strong>👤 Responsável:</strong> ${reserva.responsavel}</p>
@@ -713,7 +748,7 @@ function renderizarReservas() {
                     ? `<p><strong>📝 Observações:</strong> ${reserva.observacoes}</p>`
                     : ""
                 }
-                <p><strong>� Cancelamento:</strong> <span style="color: #28a745;">Apenas o responsável autenticado</span></p>
+                <p><strong>🔒 Cancelamento:</strong> <span style="color: #28a745;">Apenas o responsável autenticado</span></p>
             </div>
             <div class="reserva-actions">
                 <span class="horario-badge">${reserva.horaInicio} - ${
