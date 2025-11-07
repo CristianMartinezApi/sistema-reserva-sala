@@ -1067,6 +1067,47 @@ button:disabled {
   box-shadow: 0 0 25px rgba(129, 140, 248, 0.6), 6px 6px 14px rgba(0, 0, 0, 0.6) !important;
 }
 
+/* Dia selecionado para consulta */
+.cal-day.selected {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: white !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5),
+    inset 0 0 30px rgba(255, 255, 255, 0.1) !important;
+  border: 2px solid #34d399 !important;
+  transform: scale(1.05);
+}
+
+.cal-day.selected .date-num {
+  color: white !important;
+  font-weight: 700 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+.cal-day.selected:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.7), 6px 6px 14px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Se o dia selecionado também tem reserva */
+.cal-day.selected.has-reserva {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border: 2px solid #fbbf24 !important;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.cal-day.selected.has-reserva .date-num {
+  color: white !important;
+}
+
+/* Hoje selecionado - mantém o estilo azul com destaque extra */
+.cal-day.today.selected {
+  background: linear-gradient(135deg, #818cf8, #6366f1) !important;
+  border: 2px solid #a5b4fc !important;
+  box-shadow: 0 0 25px rgba(129, 140, 248, 0.7), 5px 5px 10px rgba(0, 0, 0, 0.5),
+    inset 0 0 30px rgba(255, 255, 255, 0.15) !important;
+  transform: scale(1.08);
+}
+
 .cal-day .dots {
   position: absolute;
   bottom: 6px;
@@ -1146,6 +1187,10 @@ button:disabled {
 .legend-dot.today {
   background: transparent;
   border: 2px solid #667eea;
+}
+.legend-dot.selected {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 .legend-dot.other {
   background: #cbd5e1;

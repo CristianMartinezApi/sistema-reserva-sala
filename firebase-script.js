@@ -609,6 +609,13 @@ function renderizarCalendario() {
 
     // Clique no dia: seleciona data e mostra reservas do dia
     div.addEventListener("click", () => {
+      // Remove a classe 'selected' de todos os dias
+      const todosDias = grid.querySelectorAll(".cal-day");
+      todosDias.forEach((d) => d.classList.remove("selected"));
+
+      // Adiciona a classe 'selected' ao dia clicado
+      div.classList.add("selected");
+
       // Se o input existir (cenário antigo), atualiza. Mas mostramos sempre o resultado.
       const inputData = document.getElementById("consultaData");
       if (inputData) inputData.value = iso;
