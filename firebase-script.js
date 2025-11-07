@@ -318,6 +318,10 @@ async function adicionarReserva(reservaData) {
       throw new Error(erros.join("\n"));
     }
     const dadosLimpos = sanitizarDados(reservaData);
+
+    // 🔍 DEBUG: Verificar dados limpos
+    console.log("🧹 [DEBUG] Dados sanitizados:", dadosLimpos);
+
     const btnReservar = document.getElementById("btnReservar");
     if (btnReservar) {
       btnReservar.textContent = "⏳ Salvando...";
@@ -329,6 +333,13 @@ async function adicionarReserva(reservaData) {
       ip: "N/A",
       userAgent: navigator.userAgent.substring(0, 200),
     };
+
+    // 🔍 DEBUG: Verificar dados finais
+    console.log(
+      "📤 [DEBUG] Dados enviados para Firestore:",
+      reservaComTimestamp
+    );
+
     const docRef = await addDoc(
       collection(db, "reservas"),
       reservaComTimestamp
@@ -346,11 +357,39 @@ async function adicionarReserva(reservaData) {
     return docRef.id;
   } catch (error) {
     console.error("❌ Erro ao salvar reserva:", error);
-    logSeguranca("ERRO_CRIAR_RESERVA", { erro: error.message });
-    mostrarMensagem(
-      error.message || "Erro ao salvar reserva. Verifique sua conexão.",
-      "erro"
+    console.error("❌ [DEBUG] Detalhes do erro:", {
+      code: error.code,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    logSeguranca("ERRO_CRIAR_RESERVA", {
+      erro: error.message,
+      code: error.code,
+    });
+
+    // Mensagens de erro mais específicas
+    let mensagemErro = "Erro ao salvar reserva. Verifique sua conexão.";
+
+    if (error.code === "permission-denied") {
+      mensagemErro = "❌ Permissão negada!\n\n";
+      mensagemErro += "Possíveis causas:\n";
+      mensagemErro += "1. Você não está autenticado corretamente\n";
+      mensagemErro += "2. Seu token de autenticação expirou\n";
+      mensagemErro += "3. Os dados da reserva estão incompletos\n\n";
+      mensagemErro +=
+        "Solução: Faça logout e login novamente, depois tente criar a reserva.";
+    } else if (error.message) {
+      mensagemErro = error.message;
+    }
+
+    mostrarMensagem(mensagemErro, "erro");
+
+    // Exibe detalhes no console para debug
+    console.error(
+      "🔍 Abra o Console do Navegador (F12) para ver detalhes completos"
     );
+
     throw error;
   } finally {
     const btnReservar = document.getElementById("btnReservar");
@@ -1155,6 +1194,15 @@ document.addEventListener("DOMContentLoaded", function () {
         assunto,
         observacoes: observacoes || null,
       };
+
+      // 🔍 DEBUG: Verificar dados antes de enviar
+      console.log("📝 [DEBUG] Dados da reserva:", novaReserva);
+      console.log("👤 [DEBUG] Usuário autenticado:", {
+        email: usuarioAutenticado?.email,
+        uid: usuarioAutenticado?.uid,
+        displayName: usuarioAutenticado?.displayName,
+      });
+
       try {
         await adicionarReserva(novaReserva);
         this.reset();

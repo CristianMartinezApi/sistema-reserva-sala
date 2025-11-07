@@ -16,22 +16,29 @@ service cloud.firestore {
       
       // Criar: autenticado + validação de campos
       allow create: if isAuthenticated()
-        && request.resource.data.keys().hasAll(['responsavel', 'responsavelEmail', 'data', 'horaInicio', 'horaFim', 'assunto', 'criadaEm'])
+        // Campos obrigatórios
+        && request.resource.data.keys().hasAll(['responsavel', 'responsavelEmail', 'data', 'horaInicio', 'horaFim', 'assunto'])
+        // Email deve ser do usuário autenticado
         && request.resource.data.responsavelEmail == request.auth.token.email
+        // Validação do responsavel
         && request.resource.data.responsavel is string
         && request.resource.data.responsavel.size() >= 3
         && request.resource.data.responsavel.size() <= 100
+        // Validação do assunto
         && request.resource.data.assunto is string
         && request.resource.data.assunto.size() >= 3 
         && request.resource.data.assunto.size() <= 200
+        // Validação da data
         && request.resource.data.data is string
         && request.resource.data.data.matches('\\d{4}-\\d{2}-\\d{2}') // Formato YYYY-MM-DD
+        // Validação dos horários
         && request.resource.data.horaInicio is string
         && request.resource.data.horaInicio.matches('\\d{2}:\\d{2}') // Formato HH:MM
         && request.resource.data.horaFim is string
         && request.resource.data.horaFim.matches('\\d{2}:\\d{2}') // Formato HH:MM
         && request.resource.data.horaInicio < request.resource.data.horaFim
-        && (!request.resource.data.keys().hasAny(['observacoes']) || (request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 500));
+        // Validação opcional das observações (se existir)
+        && (!request.resource.data.keys().hasAny(['observacoes']) || request.resource.data.observacoes == null || (request.resource.data.observacoes is string && request.resource.data.observacoes.size() <= 500));
       
       // Delete: autenticado + dono da reserva (por email)
       allow delete: if isAuthenticated() && resource.data.responsavelEmail == request.auth.token.email;
