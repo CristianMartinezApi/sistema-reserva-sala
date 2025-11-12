@@ -7,6 +7,7 @@ import {
   doc,
   onSnapshot,
   query,
+  where,
   orderBy,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -22,12 +23,18 @@ const auth = getAuth(app); // Inicializa o Auth
 
 // Variáveis globais
 let reservas = [];
+let salas = []; // NOVO: Array de salas disponíveis
+let salaAtual = null; // NOVO: Sala atualmente selecionada
 let firebaseConectado = false;
 let usuarioAutenticado = null;
 // Unsubscribe do listener de reservas (para evitar escutas antes da autenticação e duplicadas)
 let unsubscribeReservas = null;
+// NOVO: Unsubscribe do listener de salas
+let unsubscribeSalas = null;
 // Cache local para reduzir tempo de primeira renderização após login
 const CACHE_CHAVE = "reservasCache";
+const CACHE_SALAS_CHAVE = "salasCache"; // NOVO: Cache para salas
+const SALA_PADRAO_CHAVE = "salaPadrao"; // NOVO: Última sala selecionada
 
 // Rate limiting - máximo 5 reservas por hora
 const LIMITE_RESERVAS_POR_HORA = 5;
@@ -97,6 +104,8 @@ function validarDadosReserva(reservaData) {
 
 function sanitizarDados(reservaData) {
   const base = {
+    salaId:
+      reservaData.salaId || (salaAtual ? salaAtual.id : "sala-reuniao-cest"), // NOVO: adiciona salaId
     responsavel: (reservaData.responsavel || "").trim().substring(0, 100),
     data: reservaData.data,
     horaInicio: reservaData.horaInicio,
@@ -240,15 +249,189 @@ function verificarStatusAtual() {
   }
 }
 
+// ========== FUNÇÕES PARA GERENCIAR SALAS ==========
+
+/**
+ * Carrega as salas do Firestore em tempo real
+ */
+function carregarSalas() {
+  try {
+    console.log("🏢 Carregando salas...");
+
+    const q = query(collection(db, "salas"), orderBy("ordem", "asc"));
+
+    // Cancela listener anterior se existir
+    if (typeof unsubscribeSalas === "function") {
+      try {
+        unsubscribeSalas();
+      } catch (e) {
+        console.warn("⚠️ Falha ao cancelar listener de salas:", e);
+      }
+      unsubscribeSalas = null;
+    }
+
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        console.log("📡 [FIREBASE] Salas recebidas do Firestore");
+        salas = [];
+        snapshot.forEach((doc) => {
+          salas.push({
+            id: doc.id,
+            ...doc.data(),
+          });
+        });
+
+        console.log(`✅ ${salas.length} salas carregadas`);
+
+        // Salva no cache
+        try {
+          localStorage.setItem(CACHE_SALAS_CHAVE, JSON.stringify(salas));
+        } catch (e) {
+          console.warn("⚠️ Falha ao salvar cache de salas:", e);
+        }
+
+        // Se não há sala selecionada, seleciona a primeira ou a última usada
+        if (!salaAtual && salas.length > 0) {
+          const salaIdSalva = obterSalaPadrao();
+          const salaEncontrada = salas.find((s) => s.id === salaIdSalva);
+          salaAtual = salaEncontrada || salas[0];
+          console.log(`🎯 Sala selecionada: ${salaAtual.nome}`);
+        }
+
+        // Renderiza o seletor de salas
+        renderizarSeletorSalas();
+
+        // Atualiza o header com informações da sala atual
+        atualizarHeaderSala();
+
+        // Recarrega as reservas filtradas pela sala atual
+        if (unsubscribeReservas) {
+          carregarDados();
+        }
+      },
+      (error) => {
+        console.error("❌ Erro ao carregar salas:", error);
+        mostrarMensagem("Erro ao carregar salas", "erro");
+      }
+    );
+
+    unsubscribeSalas = unsub;
+    return unsub;
+  } catch (error) {
+    console.error("❌ Erro ao configurar listener de salas:", error);
+  }
+}
+
+/**
+ * Carrega salas do cache (para carregamento rápido inicial)
+ */
+function carregarSalasDoCache() {
+  try {
+    const cacheStr = localStorage.getItem(CACHE_SALAS_CHAVE);
+    if (cacheStr) {
+      salas = JSON.parse(cacheStr);
+      console.log(`💾 ${salas.length} salas carregadas do cache`);
+
+      if (salas.length > 0 && !salaAtual) {
+        const salaIdSalva = obterSalaPadrao();
+        const salaEncontrada = salas.find((s) => s.id === salaIdSalva);
+        salaAtual = salaEncontrada || salas[0];
+      }
+
+      renderizarSeletorSalas();
+      atualizarHeaderSala();
+      return true;
+    }
+  } catch (e) {
+    console.warn("⚠️ Cache de salas inválido:", e);
+  }
+  return false;
+}
+
+/**
+ * Salva a sala padrão no localStorage
+ */
+function salvarSalaPadrao(salaId) {
+  try {
+    localStorage.setItem(SALA_PADRAO_CHAVE, salaId);
+  } catch (e) {
+    console.warn("⚠️ Falha ao salvar sala padrão:", e);
+  }
+}
+
+/**
+ * Obtém a sala padrão do localStorage
+ */
+function obterSalaPadrao() {
+  try {
+    return localStorage.getItem(SALA_PADRAO_CHAVE) || "sala-reuniao-cest";
+  } catch (e) {
+    return "sala-reuniao-cest";
+  }
+}
+
+/**
+ * Troca a sala atual
+ */
+function trocarSala(salaId) {
+  const sala = salas.find((s) => s.id === salaId);
+  if (!sala) {
+    console.error(`❌ Sala ${salaId} não encontrada`);
+    return;
+  }
+
+  console.log(`🔄 Trocando para sala: ${sala.nome}`);
+  salaAtual = sala;
+  salvarSalaPadrao(salaId);
+
+  // Atualiza a interface
+  atualizarHeaderSala();
+  renderizarSeletorSalas();
+  atualizarInterface();
+
+  // NOVO: Recarrega dados em tempo real para a nova sala
+  // Cancela o listener anterior e cria um novo com a query filtrada
+  if (typeof unsubscribeReservas === "function") {
+    console.log("🔌 Cancelando listener anterior de reservas");
+    unsubscribeReservas();
+    unsubscribeReservas = null;
+  }
+  carregarDados(); // Cria novo listener com filtro da sala atual
+
+  // Atualiza URL (sem recarregar a página)
+  if (window.history && window.history.pushState) {
+    const url = new URL(window.location);
+    url.searchParams.set("sala", salaId);
+    window.history.pushState({}, "", url);
+  }
+}
+
 function carregarDados() {
   try {
     console.log("🔄 Conectando ao Firestore...");
     logSeguranca("CONEXAO_FIRESTORE_INICIADA");
-    const q = query(
-      collection(db, "reservas"),
-      orderBy("data", "asc"),
-      orderBy("horaInicio", "asc")
-    );
+
+    // NOVO: Query filtrada por sala
+    let q;
+    if (salaAtual && salaAtual.id) {
+      console.log(`🔍 Filtrando reservas da sala: ${salaAtual.nome}`);
+      q = query(
+        collection(db, "reservas"),
+        where("salaId", "==", salaAtual.id),
+        orderBy("data", "asc"),
+        orderBy("horaInicio", "asc")
+      );
+    } else {
+      // Fallback: carrega todas as reservas se não houver sala selecionada
+      console.log("🔍 Carregando todas as reservas (sem filtro de sala)");
+      q = query(
+        collection(db, "reservas"),
+        orderBy("data", "asc"),
+        orderBy("horaInicio", "asc")
+      );
+    }
+
     // Garante que não existam múltiplos listeners ativos
     if (typeof unsubscribeReservas === "function") {
       try {
@@ -707,6 +890,9 @@ function verificarConflito(data, horaInicio, horaFim, excludeId = null) {
   return reservas.filter((reserva) => {
     if (excludeId && reserva.id === excludeId) return false;
     if (reserva.data !== data) return false;
+    // NOVO: Verifica conflito apenas para a mesma sala
+    if (salaAtual && reserva.salaId && reserva.salaId !== salaAtual.id)
+      return false;
     return horaInicio < reserva.horaFim && horaFim > reserva.horaInicio;
   });
 }
@@ -934,6 +1120,219 @@ function mostrarMensagem(texto, tipo = "info") {
   }, tempoTotal);
 }
 
+// ========== FUNÇÕES DE RENDERIZAÇÃO DE SALAS ==========
+
+/**
+ * Renderiza o seletor de salas (dropdown)
+ */
+function renderizarSeletorSalas() {
+  const dropdownButton = document.getElementById("dropdownButton");
+  const dropdownSelected = document.getElementById("dropdownSelected");
+  const dropdownMenu = document.getElementById("dropdownMenu");
+
+  if (!dropdownButton || !dropdownSelected || !dropdownMenu) {
+    console.warn("⚠️ Elementos do dropdown não encontrados");
+    return;
+  }
+
+  if (salas.length === 0) {
+    dropdownSelected.innerHTML = `
+      <span class="selected-icon">⏳</span>
+      <span class="selected-text">Carregando salas...</span>
+    `;
+    return;
+  }
+
+  // Atualiza o botão com a sala atual
+  if (salaAtual) {
+    dropdownSelected.innerHTML = `
+      <span class="selected-icon">${salaAtual.icone}</span>
+      <span class="selected-text">${salaAtual.nome}</span>
+    `;
+  }
+
+  // Renderiza as opções do menu (simplificado - só título)
+  const itemsHtml = salas
+    .map((sala) => {
+      const isSelected = salaAtual && salaAtual.id === sala.id;
+
+      return `
+        <div class="dropdown-item ${
+          isSelected ? "selected" : ""
+        }" data-sala-id="${sala.id}">
+          <div class="item-icon">${sala.icone}</div>
+          <div class="item-content">
+            <div class="item-title">${sala.nome}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  dropdownMenu.innerHTML = itemsHtml;
+
+  // Configura eventos
+  configurarSeletor();
+
+  console.log(`✅ ${salas.length} salas renderizadas no dropdown`);
+}
+
+/**
+ * Configura o comportamento do seletor
+ */
+let seletorConfigurado = false;
+
+function configurarSeletor() {
+  const dropdownButton = document.getElementById("dropdownButton");
+  const dropdownMenu = document.getElementById("dropdownMenu");
+
+  if (!dropdownButton || !dropdownMenu) {
+    console.warn("⚠️ Elementos do dropdown não encontrados");
+    return;
+  }
+
+  // Só configura uma vez
+  if (seletorConfigurado) return;
+
+  console.log("🔧 Configurando seletor de salas...");
+
+  // Toggle do dropdown
+  dropdownButton.addEventListener("click", function (e) {
+    e.stopPropagation();
+    const isOpen = dropdownMenu.classList.contains("show");
+
+    if (isOpen) {
+      dropdownButton.classList.remove("active");
+      dropdownMenu.classList.remove("show");
+    } else {
+      dropdownButton.classList.add("active");
+      dropdownMenu.classList.add("show");
+    }
+  });
+
+  // Click nas opções - USA EVENT DELEGATION
+  dropdownMenu.addEventListener("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    console.log(
+      "🖱️ Click no menu! Target:",
+      e.target.tagName,
+      e.target.className
+    );
+
+    const item = e.target.closest(".dropdown-item");
+
+    if (item) {
+      const salaId = item.getAttribute("data-sala-id");
+      console.log("✅ Sala selecionada:", salaId);
+
+      // Fecha o dropdown
+      dropdownButton.classList.remove("active");
+      dropdownMenu.classList.remove("show");
+
+      // Troca a sala
+      if (salaId) {
+        trocarSala(salaId);
+      }
+    } else {
+      console.warn("⚠️ Não encontrou .dropdown-item");
+    }
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener("click", function (e) {
+    const isClickInside = e.target.closest(".custom-dropdown");
+
+    if (!isClickInside && dropdownMenu.classList.contains("show")) {
+      dropdownButton.classList.remove("active");
+      dropdownMenu.classList.remove("show");
+    }
+  });
+
+  seletorConfigurado = true;
+  console.log("✅ Seletor configurado");
+}
+
+/**
+ * Atualiza o header com informações da sala atual
+ */
+function atualizarHeaderSala() {
+  if (!salaAtual) return;
+
+  // Atualiza título
+  const titulo = document.querySelector("header h1");
+  if (titulo) {
+    titulo.innerHTML = `${salaAtual.icone} ${salaAtual.nome}`;
+  }
+
+  // Atualiza localização
+  const localizacao = document.querySelector(
+    ".info-item:nth-child(1) span:last-child"
+  );
+  if (localizacao) {
+    localizacao.textContent = `Localização: ${salaAtual.localizacao}`;
+  }
+
+  // Atualiza capacidade
+  const capacidade = document.querySelector(
+    ".info-item:nth-child(2) span:last-child"
+  );
+  if (capacidade) {
+    capacidade.textContent = `Capacidade: ${salaAtual.capacidade} pessoas`;
+  }
+
+  // Atualiza recursos
+  const estruturaGrid = document.querySelector(".estrutura-grid");
+  if (estruturaGrid && salaAtual.recursos) {
+    estruturaGrid.innerHTML = salaAtual.recursos
+      .map((recurso) => `<div class="estrutura-item">${recurso}</div>`)
+      .join("");
+  }
+
+  // Atualiza avisos
+  const avisoContainer = document.querySelector(".aviso-notebook");
+  if (avisoContainer && salaAtual.avisos && salaAtual.avisos.length > 0) {
+    const avisoTexto = salaAtual.avisos[0].replace(/^[^\s]+\s/, ""); // Remove emoji
+    const avisoEmoji = salaAtual.avisos[0].match(/^[^\s]+/)[0]; // Pega emoji
+    avisoContainer.innerHTML = `
+      <span class="aviso-icon">${avisoEmoji}</span>
+      <span><strong>Importante:</strong> ${avisoTexto}</span>
+    `;
+  }
+}
+
+/**
+ * Função global para selecionar sala (chamada pelos botões)
+ */
+window.selecionarSala = function (salaId) {
+  console.log("🖱️ Clique detectado na sala:", salaId);
+  trocarSala(salaId);
+};
+
+window.selecionarSalaEFechar = function (salaId) {
+  console.log("🖱️ === CLIQUE NA OPÇÃO ===");
+  console.log("🖱️ Sala ID:", salaId);
+  console.log("🖱️ Sala atual antes:", salaAtual?.id);
+
+  // Fecha o dropdown
+  const trigger = document.getElementById("selectTrigger");
+  const options = document.getElementById("selectOptions");
+
+  console.log("🔧 Trigger encontrado:", !!trigger);
+  console.log("🔧 Options encontrado:", !!options);
+
+  if (trigger && options) {
+    trigger.classList.remove("active");
+    options.classList.remove("show");
+    console.log("✅ Dropdown fechado");
+  }
+
+  // Troca a sala
+  console.log("🔄 Chamando trocarSala...");
+  trocarSala(salaId);
+  console.log("🖱️ Sala atual depois:", salaAtual?.id);
+};
 function atualizarInterface() {
   if (elementoExiste("statusAtual")) {
     verificarStatusAtual();
@@ -1072,6 +1471,8 @@ monitorAuthState((user) => {
     mostrarModalLogin(false);
     // Renderiza imediatamente a partir do cache e inicia listener em seguida
     carregarReservasDoCache();
+    carregarSalasDoCache(); // NOVO: Carrega salas do cache
+    if (!unsubscribeSalas) carregarSalas(); // NOVO: Inicia listener de salas
     if (!unsubscribeReservas) carregarDados();
   } else {
     console.log("Nenhum usuário autenticado.");
@@ -1097,6 +1498,21 @@ monitorAuthState((user) => {
 document.addEventListener("DOMContentLoaded", function () {
   console.log("🚀 Iniciando aplicação com segurança...");
   logSeguranca("APLICACAO_INICIADA");
+
+  // NOVO: Carrega salas do cache primeiro (rápido)
+  carregarSalasDoCache();
+
+  // NOVO: Verifica URL para sala específica
+  const urlParams = new URL(window.location).searchParams;
+  const salaIdUrl = urlParams.get("sala");
+  if (salaIdUrl) {
+    const salaEncontrada = salas.find((s) => s.id === salaIdUrl);
+    if (salaEncontrada) {
+      salaAtual = salaEncontrada;
+      salvarSalaPadrao(salaIdUrl);
+    }
+  }
+
   setTimeout(() => {
     definirDataMinima();
     if (elementoExiste("statusAtual")) {

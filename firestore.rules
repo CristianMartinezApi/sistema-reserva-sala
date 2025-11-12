@@ -8,6 +8,16 @@ service cloud.firestore {
              request.auth.token.email != null;
     }
     
+    // Regras para a coleção de salas
+    match /salas/{salaId} {
+      // Qualquer usuário pode ler as salas (informações públicas)
+      allow read: if true;
+      
+      // Apenas usuários autenticados podem criar/modificar salas
+      // TODO: Restringir para apenas administradores no futuro
+      allow write: if isAuthenticated();
+    }
+    
     // Regras para a coleção de reservas
     match /reservas/{reservaId} {
       
@@ -16,8 +26,11 @@ service cloud.firestore {
       
       // Criar: autenticado + validação de campos
       allow create: if isAuthenticated()
-        // Campos obrigatórios
-        && request.resource.data.keys().hasAll(['responsavel', 'responsavelEmail', 'data', 'horaInicio', 'horaFim', 'assunto'])
+        // Campos obrigatórios (incluindo salaId)
+        && request.resource.data.keys().hasAll(['salaId', 'responsavel', 'responsavelEmail', 'data', 'horaInicio', 'horaFim', 'assunto'])
+        // Validação do salaId
+        && request.resource.data.salaId is string
+        && request.resource.data.salaId.size() > 0
         // Email deve ser do usuário autenticado
         && request.resource.data.responsavelEmail == request.auth.token.email
         // Validação do responsavel
@@ -43,8 +56,12 @@ service cloud.firestore {
       // Delete: autenticado + dono da reserva (por email)
       allow delete: if isAuthenticated() && resource.data.responsavelEmail == request.auth.token.email;
       
-      // Updates não permitidos
-      allow update: if false;
+      // Update: apenas para adicionar salaId em reservas antigas (migração)
+      // Permite update se o usuário está autenticado E está apenas adicionando o campo salaId
+      allow update: if isAuthenticated() 
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['salaId'])
+        && request.resource.data.salaId is string
+        && request.resource.data.salaId.size() > 0;
     }
     
     // Regras para logs de segurança (opcional - para auditoria persistente)
