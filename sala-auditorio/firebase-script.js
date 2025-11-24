@@ -717,6 +717,22 @@ monitorAuthState((user) => {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Login Google no modal
+  const btnLoginGoogle = document.getElementById("btnLoginGoogle");
+  if (btnLoginGoogle) {
+    btnLoginGoogle.addEventListener("click", async function () {
+      try {
+        await loginWithGoogle();
+      } catch (error) {
+        const loginErrorMsg = document.getElementById("loginErrorMsg");
+        if (loginErrorMsg) {
+          loginErrorMsg.textContent =
+            "Erro ao fazer login: " + (error.message || "");
+          loginErrorMsg.style.display = "block";
+        }
+      }
+    });
+  }
   carregarReservasDoCache();
   setTimeout(() => {
     if (document.getElementById("statusAtual")) {
