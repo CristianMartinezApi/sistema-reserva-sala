@@ -14,6 +14,103 @@
       class="portal-bg"
       style="min-height: 100vh; display: flex; flex-direction: column"
     >
+      <!-- Modal de Login -->
+      <div
+        id="loginModal"
+        class="modal-overlay"
+        style="
+          display: none;
+          position: fixed;
+          z-index: 9999;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          align-items: center;
+          justify-content: center;
+        "
+      >
+        <div
+          class="modal-content"
+          style="
+            max-width: 400px;
+            width: 95%;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 12px 48px rgba(102, 126, 234, 0.25);
+            border-radius: 18px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          "
+        >
+          <div style="font-size: 3rem; margin-bottom: 0.5em; color: #667eea">
+            🔒
+          </div>
+          <h2
+            style="
+              font-size: 2rem;
+              margin-bottom: 0.5em;
+              color: #333;
+              font-weight: 700;
+              letter-spacing: 1px;
+            "
+          >
+            Acesse sua conta
+          </h2>
+          <p
+            style="
+              color: #555;
+              margin-bottom: 1.5em;
+              text-align: center;
+              font-size: 1.08em;
+            "
+          >
+            Faça login para acessar as salas e reservar.
+          </p>
+          <button
+            id="btnLoginGoogle"
+            class="google-btn"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 0.7em;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: #fff;
+              border: none;
+              border-radius: 8px;
+              padding: 0.9em 1.5em;
+              font-size: 1.1em;
+              font-weight: 600;
+              box-shadow: 0 4px 15px rgba(102, 126, 234, 0.18);
+              margin-bottom: 1.2em;
+              cursor: pointer;
+              transition: background 0.2s;
+            "
+          >
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              style="
+                width: 28px;
+                height: 28px;
+                background: #fff;
+                border-radius: 50%;
+                padding: 2px;
+              "
+            />
+            Entrar com Google
+          </button>
+        </div>
+      </div>
+      <!-- Área de usuário autenticado -->
+      <div
+        id="userInfo"
+        style="
+          display: none;
+          text-align: right;
+          padding: 0.5rem 2.5rem 0 0;
+          font-size: 1.05rem;
+        "
+      ></div>
       <header style="padding: 2.5rem 0 1.2rem 0; text-align: center">
         <img
           src="LogoPGE_Horizontal-Branca--2048x948.png"
@@ -83,6 +180,7 @@
                 cursor: pointer;
                 border: none;
                 gap: 0.7em;
+                pointer-events: none;
               "
               onmouseover="this.style.transform='translateY(-6px) scale(1.03)';this.style.boxShadow='0 8px 32px rgba(102,126,234,0.22)';"
               onmouseout="this.style.transform='';this.style.boxShadow='0 4px 24px rgba(102,126,234,0.18)';"
@@ -120,6 +218,7 @@
                 cursor: pointer;
                 border: none;
                 gap: 0.7em;
+                pointer-events: none;
               "
               onmouseover="this.style.transform='translateY(-6px) scale(1.03)';this.style.boxShadow='0 8px 32px rgba(247,151,30,0.18)';"
               onmouseout="this.style.transform='';this.style.boxShadow='0 4px 24px rgba(247,151,30,0.13)';"
@@ -183,5 +282,9 @@
         </div>
       </footer>
     </div>
+    <!-- Firebase e Auth -->
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="portal-auth.js"></script>
   </body>
 </html>

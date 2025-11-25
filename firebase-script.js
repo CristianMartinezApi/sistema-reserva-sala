@@ -11,7 +11,7 @@ import {
   orderBy,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { monitorAuthState, login, loginWithGoogle } from "./auth.js";
+import { monitorAuthState } from "./auth.js";
 // Importar funções de autenticação para logout
 import {
   getAuth,
@@ -1356,142 +1356,17 @@ function definirDataMinima() {
   }
 }
 
-// Exibir ou ocultar o modal de login conforme o estado de autenticação
-function mostrarModalLogin(mostrar = true) {
-  const loginModal = document.getElementById("loginModal");
-  if (loginModal) {
-    loginModal.style.display = mostrar ? "block" : "none";
-  }
-}
-
-// Listener para o formulário de login
-document.addEventListener("DOMContentLoaded", function () {
-  const loginForm = document.getElementById("loginForm");
-  const fecharModal = document.getElementById("fecharModal");
-  const btnLoginGoogle = document.getElementById("btnLoginGoogle");
-
-  if (loginForm) {
-    loginForm.addEventListener("submit", async function (e) {
-      e.preventDefault();
-      const email = document.getElementById("loginEmail").value;
-      const password = document.getElementById("loginPassword").value;
-      try {
-        // Função login foi importada via auth.js
-        await login(email, password);
-        mostrarMensagem("Login realizado com sucesso!", "sucesso");
-        mostrarModalLogin(false);
-        // Atualiza saudação
-        document.getElementById(
-          "userGreeting"
-        ).textContent = `Bem-vindo, ${email}`;
-      } catch (error) {
-        mostrarMensagem("Erro no login: " + error.message, "erro");
-      }
-    });
-  }
-
-  if (fecharModal) {
-    fecharModal.addEventListener("click", function () {
-      mostrarModalLogin(false);
-    });
-  }
-
-  if (btnLoginGoogle) {
-    btnLoginGoogle.addEventListener("click", async function () {
-      try {
-        const result = await loginWithGoogle();
-        mostrarMensagem("Login com Google realizado com sucesso!", "sucesso");
-        // Use o displayName ou, se ausente, a parte do email antes do '@'
-        const userName = result.user.displayName
-          ? result.user.displayName
-          : result.user.email.split("@")[0];
-        document.getElementById(
-          "userGreeting"
-        ).textContent = `Bem-vindo, ${userName}`;
-        mostrarModalLogin(false);
-        // Após login bem-sucedido, renderiza cache e inicia listener
-        carregarReservasDoCache();
-        if (!unsubscribeReservas) carregarDados();
-      } catch (error) {
-        mostrarMensagem("Erro no login: " + error.message, "erro");
-      }
-    });
-  }
-});
-
-// Função para efetuar o logout
-function logout() {
-  signOut(auth)
-    .then(() => {
-      mostrarMensagem("Logout realizado com sucesso!", "sucesso");
-      // Aguarda um pequeno intervalo e recarrega a página para atualizar a interface
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    })
-    .catch((error) => {
-      mostrarMensagem("Erro ao fazer logout: " + error.message, "erro");
-    });
-}
-window.logout = logout;
-
 // Monitorar estado de autenticação
+// Checagem simples de autenticação: se não autenticado, redireciona para a raiz
 monitorAuthState((user) => {
-  const userGreetingElem = document.getElementById("userGreeting");
-  const logoutContainer = document.getElementById("logoutContainer");
-  if (user) {
-    console.log("Usuário autenticado:", user.email);
-
-    // Limpa mensagem de erro ao abrir modal de login
-    const loginModal = document.getElementById("loginModal");
-    if (loginModal) {
-      loginModal.addEventListener("transitionend", function () {
-        const loginErrorMsg = document.getElementById("loginErrorMsg");
-        if (loginErrorMsg) loginErrorMsg.style.display = "none";
-      });
-    }
-
-    usuarioAutenticado = user;
-    logSeguranca("USUARIO_AUTENTICADO", { email: user.email, uid: user.uid });
-
-    // Se não houver displayName, extrai a parte antes do '@'
-    const userName = user.displayName
-      ? user.displayName
-      : user.email.split("@")[0];
-    userGreetingElem.textContent = `Bem-vindo, ${userName}`;
-    if (!document.getElementById("btnLogout")) {
-      const btnLogout = document.createElement("button");
-      btnLogout.id = "btnLogout";
-      btnLogout.textContent = "Sair";
-      btnLogout.style.cssText =
-        "margin-left: 10px; padding: 0.3rem 0.6rem; border: none; background: #dc3545; color: white; border-radius: 4px; cursor: pointer;";
-      logoutContainer.appendChild(btnLogout);
-      btnLogout.addEventListener("click", logout);
-    }
-    mostrarModalLogin(false);
-    // Renderiza imediatamente a partir do cache e inicia listener em seguida
-    carregarReservasDoCache();
-    carregarSalasDoCache(); // NOVO: Carrega salas do cache
-    if (!unsubscribeSalas) carregarSalas(); // NOVO: Inicia listener de salas
-    if (!unsubscribeReservas) carregarDados();
+  if (!user) {
+    window.location.href = "/index.html";
   } else {
-    console.log("Nenhum usuário autenticado.");
-    logSeguranca("USUARIO_DESAUTENTICADO");
-    usuarioAutenticado = null;
-    const btnLogout = document.getElementById("btnLogout");
-    if (btnLogout) {
-      btnLogout.remove();
-    }
-    // Cancela listener e limpa interface
-    if (typeof unsubscribeReservas === "function") {
-      try {
-        unsubscribeReservas();
-      } catch (_) {}
-      unsubscribeReservas = null;
-    }
-    reservas = [];
-    atualizarInterface();
-    mostrarModalLogin(true);
+    usuarioAutenticado = user;
+    carregarReservasDoCache();
+    carregarSalasDoCache();
+    if (!unsubscribeSalas) carregarSalas();
+    if (!unsubscribeReservas) carregarDados();
   }
 });
 

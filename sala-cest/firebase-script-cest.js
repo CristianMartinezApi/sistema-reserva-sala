@@ -11,12 +11,7 @@ import {
   orderBy,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import {
-  monitorAuthState,
-  login,
-  loginWithGoogle,
-  logout,
-} from "./auth-auditorio.js";
+import { monitorAuthState } from "./auth-cest.js";
 import {
   getAuth,
   signOut,
@@ -24,26 +19,76 @@ import {
 
 const db = getFirestore(app);
 
-// Variáveis globais necessárias
-let usuarioAutenticado = null;
+// Variáveis globais
 let reservas = [];
+let usuarioAutenticado = null;
 let unsubscribeReservas = null;
+const SALA_ID_FIXA = "cest";
+const CACHE_CHAVE = "reservas_cest";
 
-// Definições fixas para esta sala
-const SALA_ID_FIXA = "auditorio";
-const CACHE_CHAVE = "reservas_auditorio";
-// Monitorar estado de autenticação
-// Checagem simples de autenticação: se não autenticado, redireciona para a raiz
-monitorAuthState((user) => {
-  if (!user) {
-    window.location.href = "/index.html";
-  } else {
-    usuarioAutenticado = user;
-    if (window.toggleNovaReserva) window.toggleNovaReserva(user.email);
-    carregarReservasDoCache();
-    if (!unsubscribeReservas) carregarDados();
+function verificarLimiteReservas() {
+  // Limite simples: máximo 5 reservas por hora
+  const LIMITE_RESERVAS_POR_HORA = 5;
+  let reservasFeitas = parseInt(localStorage.getItem("reservasFeitas") || "0");
+  let ultimaReserva = parseInt(localStorage.getItem("ultimaReserva") || "0");
+  const agora = Date.now();
+  const umaHora = 3600000;
+  if (agora - ultimaReserva > umaHora) {
+    reservasFeitas = 0;
+    localStorage.setItem("reservasFeitas", "0");
   }
-});
+  if (reservasFeitas >= LIMITE_RESERVAS_POR_HORA) {
+    throw new Error(
+      `Limite de ${LIMITE_RESERVAS_POR_HORA} reservas por hora excedido. Tente novamente mais tarde.`
+    );
+  }
+}
+
+function incrementarContadorReservas() {
+  let reservasFeitas = parseInt(localStorage.getItem("reservasFeitas") || "0");
+  let ultimaReserva = Date.now();
+  reservasFeitas++;
+  localStorage.setItem("reservasFeitas", reservasFeitas.toString());
+  localStorage.setItem("ultimaReserva", ultimaReserva.toString());
+}
+
+function validarDadosReserva(reservaData) {
+  const erros = [];
+  if (!reservaData.responsavel || reservaData.responsavel.trim().length < 2) {
+    erros.push("Nome do responsável deve ter pelo menos 2 caracteres");
+  }
+  const agora = new Date();
+  const dataReserva = new Date(reservaData.data + "T" + reservaData.horaInicio);
+  const margemMinutos = 30 * 60 * 1000;
+  if (dataReserva.getTime() <= agora.getTime() + margemMinutos) {
+    const minutosRestantes = Math.ceil(
+      (dataReserva.getTime() - agora.getTime()) / (60 * 1000)
+    );
+    if (minutosRestantes <= 0) {
+      erros.push("Não é possível fazer reservas para horários que já passaram");
+    } else {
+      erros.push(
+        `Reservas devem ser feitas com pelo menos 30 minutos de antecedência (faltam ${minutosRestantes} min)`
+      );
+    }
+  }
+  if (reservaData.horaInicio >= reservaData.horaFim) {
+    erros.push("Horário de início deve ser anterior ao horário de fim");
+  }
+  const horaInicioNum = parseInt(reservaData.horaInicio.replace(":", ""));
+  const horaFimNum = parseInt(reservaData.horaFim.replace(":", ""));
+  if (horaInicioNum < 600 || horaFimNum > 2200) {
+    erros.push("Horário de funcionamento: 06:00 às 22:00");
+  }
+  if (!reservaData.assunto || reservaData.assunto.trim().length < 3) {
+    erros.push("Assunto deve ter pelo menos 3 caracteres");
+  }
+  const duracao = (horaFimNum - horaInicioNum) / 100;
+  if (duracao > 8) {
+    erros.push("Duração máxima da reserva: 8 horas");
+  }
+  return erros;
+}
 
 function sanitizarDados(reservaData) {
   const base = {
@@ -189,7 +234,6 @@ function atualizarStatusConexao(conectado) {
   if (conectado) {
     statusDiv.innerHTML = "✅ Conectado ao Firebase - Dados sincronizados";
     statusDiv.style.background = "#28a745";
-    firebaseConectado = true;
     setTimeout(() => {
       statusDiv.style.display = "none";
     }, 5000);
@@ -197,7 +241,6 @@ function atualizarStatusConexao(conectado) {
     statusDiv.innerHTML = "❌ Erro de conexão - Verifique sua internet";
     statusDiv.style.background = "#dc3545";
     statusDiv.style.display = "block";
-    firebaseConectado = false;
   }
 }
 
@@ -229,12 +272,12 @@ function verificarStatusAtual() {
   if (reservaAtual) {
     statusDiv.className = "status-atual status-ocupada";
     statusDiv.innerHTML = `
-						<div class="status-icon">🔴</div>
-						<h2>Sala Ocupada</h2>
-						<p><strong>Reunião:</strong> ${reservaAtual.assunto}</p>
-						<p><strong>Responsável:</strong> ${reservaAtual.responsavel}</p>
-						<p><strong>Até às:</strong> ${reservaAtual.horaFim}</p>
-				`;
+            <div class="status-icon">🔴</div>
+            <h2>Sala Ocupada</h2>
+            <p><strong>Reunião:</strong> ${reservaAtual.assunto}</p>
+            <p><strong>Responsável:</strong> ${reservaAtual.responsavel}</p>
+            <p><strong>Até às:</strong> ${reservaAtual.horaFim}</p>
+        `;
   } else {
     const proximaReserva = reservas
       .filter((r) => r.data === dataHoje && r.horaInicio > horaAtual)
@@ -242,23 +285,22 @@ function verificarStatusAtual() {
     statusDiv.className = "status-atual status-livre";
     if (proximaReserva) {
       statusDiv.innerHTML = `
-								<div class="status-icon">🟢</div>
-								<h2>Sala Disponível</h2>
-								<p>Próxima reunião às ${proximaReserva.horaInicio}</p>
-								<p><em>${proximaReserva.assunto}</em></p>
-						`;
+                <div class="status-icon">🟢</div>
+                <h2>Sala Disponível</h2>
+                <p>Próxima reunião às ${proximaReserva.horaInicio}</p>
+                <p><em>${proximaReserva.assunto}</em></p>
+            `;
     } else {
       statusDiv.innerHTML = `
-								<div class="status-icon">🟢</div>
-								<h2>Sala Disponível</h2>
-								<p>Nenhuma reunião agendada para hoje</p>
-								<p><em>Você pode reservar agora!</em></p>
-						`;
+                <div class="status-icon">🟢</div>
+                <h2>Sala Disponível</h2>
+                <p>Nenhuma reunião agendada para hoje</p>
+                <p><em>Você pode reservar agora!</em></p>
+            `;
     }
   }
 }
 
-// Calendário visual mensal
 let calDataAtual = new Date();
 calDataAtual.setDate(1);
 
@@ -377,12 +419,12 @@ function mostrarReservasDoDia(dataISO) {
     .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
   if (reservasDoDia.length === 0) {
     resultado.innerHTML = `
-			<div class="consulta-result disponivel">
-				✅ <strong>Dia totalmente livre!</strong><br>
-				<small>📅 ${dataISO}</small><br>
-				<small>🎯 Perfeito para agendar sua reunião!</small>
-			</div>
-		`;
+            <div class="consulta-result disponivel">
+                ✅ <strong>Dia totalmente livre!</strong><br>
+                <small>📅 ${dataISO}</small><br>
+                <small>🎯 Perfeito para agendar sua reunião!</small>
+            </div>
+        `;
   } else {
     const lista = reservasDoDia
       .map(
@@ -391,11 +433,11 @@ function mostrarReservasDoDia(dataISO) {
       )
       .join("");
     resultado.innerHTML = `
-			<div class="consulta-result ocupada">
-				📅 <strong>Reservas do dia:</strong>
-				<div class="conflito-lista">${lista}</div>
-			</div>
-		`;
+            <div class="consulta-result ocupada">
+                📅 <strong>Reservas do dia:</strong>
+                <div class="conflito-lista">${lista}</div>
+            </div>
+        `;
   }
 }
 
@@ -431,30 +473,38 @@ function renderizarReservas() {
   lista.innerHTML = reservasFuturas
     .map(
       (reserva) => `
-				<div class="reserva-item">
-						<div class="calendar-icon-container">
-								📅
-						</div>
-						<div class="reserva-info">
-								<h3>${reserva.assunto}</h3>
-								<p><strong>👤 Responsável:</strong> ${reserva.responsavel}</p>
-								<p><strong>📅 Data:</strong> ${reserva.data}</p>
-								<p><strong>⏰ Horário:</strong> ${reserva.horaInicio} às ${reserva.horaFim}</p>
-								${
-                  reserva.observacoes
-                    ? `<p><strong>📝 Observações:</strong> ${reserva.observacoes}</p>`
-                    : ""
-                }
-								<p><strong>🔒 Cancelamento:</strong> <span style="color: #28a745;">Apenas o responsável autenticado</span></p>
-						</div>
-						<div class="reserva-actions">
-								<span class="horario-badge">${reserva.horaInicio} - ${reserva.horaFim}</span>
-								<button class="btn-danger" onclick="cancelarReserva('${reserva.id}')">
-										🗑️ Cancelar
-								</button>
-						</div>
-				</div>
-		`
+                <div class="reserva-item">
+                        <div class="calendar-icon-container">
+                            📅
+                        </div>
+                        <div class="reserva-info">
+                            <h3>${reserva.assunto}</h3>
+                            <p><strong>👤 Responsável:</strong> ${
+                              reserva.responsavel
+                            }</p>
+                            <p><strong>📅 Data:</strong> ${reserva.data}</p>
+                            <p><strong>⏰ Horário:</strong> ${
+                              reserva.horaInicio
+                            } às ${reserva.horaFim}</p>
+                            ${
+                              reserva.observacoes
+                                ? `<p><strong>📝 Observações:</strong> ${reserva.observacoes}</p>`
+                                : ""
+                            }
+                            <p><strong>🔒 Cancelamento:</strong> <span style="color: #28a745;">Apenas o responsável autenticado</span></p>
+                        </div>
+                        <div class="reserva-actions">
+                            <span class="horario-badge">${
+                              reserva.horaInicio
+                            } - ${reserva.horaFim}</span>
+                            <button class="btn-danger" onclick="cancelarReserva('${
+                              reserva.id
+                            }')">
+                                🗑️ Cancelar
+                            </button>
+                        </div>
+                </div>
+            `
     )
     .join("");
 }
@@ -492,39 +542,39 @@ function mostrarModalConfirmacao(dadosReserva) {
   const overlay = document.createElement("div");
   overlay.id = "modalConfirmacaoReserva";
   overlay.style.cssText = `
-		position: fixed;
-		inset: 0;
-		background: rgba(0,0,0,0.6);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 9999;
-	`;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      `;
   const card = document.createElement("div");
   card.style.cssText = `
-		width: min(520px, 92vw);
-		background: linear-gradient(180deg, rgba(232,245,233,0.95), rgba(255,255,255,0.95));
-		border: 1px solid #28a745;
-		border-radius: 12px;
-		padding: 20px;
-		box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-		animation: slideInRight 0.25s ease;
-	`;
+        width: min(520px, 92vw);
+        background: linear-gradient(180deg, rgba(232,245,233,0.95), rgba(255,255,255,0.95));
+        border: 1px solid #28a745;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        animation: slideInRight 0.25s ease;
+      `;
   card.innerHTML = `
-		<div style="background:#e8f5e9;border:2px solid #28a745;padding:12px;border-radius:8px;text-align:center;color:#155724;margin-bottom:12px;">
-			<strong>✔ Sua reserva foi registrada.</strong><br>
-			<small>Cancelamento: apenas pelo responsável autenticado.</small>
-		</div>
-		<div style="display:grid;gap:8px;margin:12px 0;color:#1b1e22;">
-			<div><strong>📅 Data:</strong> ${dadosReserva.data}</div>
-			<div><strong>⏰ Horário:</strong> ${dadosReserva.horaInicio} às ${dadosReserva.horaFim}</div>
-			<div><strong>🧑‍💼 Responsável:</strong> ${dadosReserva.responsavel}</div>
-			<div><strong>📝 Assunto:</strong> ${dadosReserva.assunto}</div>
-		</div>
-		<div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
-			<button id="btnFecharConfirmacao" style="background:#28a745;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer;">✅ Entendi</button>
-		</div>
-	`;
+        <div style="background:#e8f5e9;border:2px solid #28a745;padding:12px;border-radius:8px;text-align:center;color:#155724;margin-bottom:12px;">
+          <strong>✔ Sua reserva foi registrada.</strong><br>
+          <small>Cancelamento: apenas pelo responsável autenticado.</small>
+        </div>
+        <div style="display:grid;gap:8px;margin:12px 0;color:#1b1e22;">
+          <div><strong>📅 Data:</strong> ${dadosReserva.data}</div>
+          <div><strong>⏰ Horário:</strong> ${dadosReserva.horaInicio} às ${dadosReserva.horaFim}</div>
+          <div><strong>👤 Responsável:</strong> ${dadosReserva.responsavel}</div>
+          <div><strong>📝 Assunto:</strong> ${dadosReserva.assunto}</div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
+          <button id="btnFecharConfirmacao" style="background:#28a745;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer;">✅ Entendi</button>
+        </div>
+      `;
   overlay.appendChild(card);
   document.body.appendChild(overlay);
   document.body.style.overflow = "hidden";
@@ -556,19 +606,19 @@ function mostrarMensagem(texto, tipo = "info") {
   mensagem.className = `mensagem-sistema ${tipo}`;
   mensagem.textContent = texto;
   mensagem.style.cssText = `
-				position: fixed;
-				top: 20px;
-				right: 20px;
-				padding: 1rem 1.5rem;
-				border-radius: 8px;
-				color: white;
-				font-weight: 600;
-				z-index: 1000;
-				max-width: 350px;
-				box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-				animation: slideInRight 0.3s ease;
-				cursor: pointer;
-		`;
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                max-width: 350px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                animation: slideInRight 0.3s ease;
+                cursor: pointer;
+            `;
   mensagem.title = "Clique para fechar";
   mensagem.addEventListener("click", () => {
     mensagem.style.animation = "slideOutRight 0.3s ease";
@@ -589,14 +639,10 @@ function mostrarMensagem(texto, tipo = "info") {
       mensagem.style.background = "linear-gradient(135deg, #17a2b8, #3498db)";
   }
   document.body.appendChild(mensagem);
-  // Aumenta o tempo de exibição para mensagens de erro longas (ex: bloqueio de reserva)
   let tempoBase = 6000;
   let tempoExtra = Math.min(texto.length * 50, 8000);
   let tempoTotal =
     tipo === "erro" || tipo === "aviso" ? tempoBase + tempoExtra : tempoBase;
-  if (tipo === "erro" && texto.includes("apenas pessoas autorizadas")) {
-    tempoTotal = 18000; // 18 segundos para mensagem de bloqueio de reserva
-  }
   setTimeout(() => {
     if (mensagem.parentNode) {
       mensagem.style.animation = "slideOutRight 0.3s ease";
@@ -605,17 +651,14 @@ function mostrarMensagem(texto, tipo = "info") {
   }, tempoTotal);
 }
 
-// Monitorar estado de autenticação: se não autenticado, redireciona para o portal
 monitorAuthState((user) => {
   if (user) {
     usuarioAutenticado = user;
-    if (window.toggleNovaReserva) window.toggleNovaReserva(user.email);
     carregarReservasDoCache();
     if (!unsubscribeReservas) carregarDados();
     if (typeof window.hidePageLoader === "function") window.hidePageLoader();
   } else {
     usuarioAutenticado = null;
-    if (window.toggleNovaReserva) window.toggleNovaReserva(null);
     if (typeof unsubscribeReservas === "function") {
       try {
         unsubscribeReservas();
@@ -624,7 +667,6 @@ monitorAuthState((user) => {
     }
     reservas = [];
     atualizarInterface();
-    // Redireciona para o portal se não autenticado
     window.location.href = "/index.html";
   }
 });
@@ -653,7 +695,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (reservaForm) {
     reservaForm.addEventListener("submit", async function (e) {
       e.preventDefault();
-      // Se não autenticado, redireciona para o portal
       if (!usuarioAutenticado) {
         window.location.href = "/index.html";
         return;
