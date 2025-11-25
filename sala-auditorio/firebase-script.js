@@ -18,69 +18,60 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const db = getFirestore(app);
-const auth = getAuth(app);
-
-// Sala fixa para Auditório
-const SALA_ID_FIXA = "sala-auditorio";
-
-let reservas = [];
-let firebaseConectado = false;
-let usuarioAutenticado = null;
-let unsubscribeReservas = null;
-const CACHE_CHAVE = "reservasCache_auditorio";
-
-const LIMITE_RESERVAS_POR_HORA = 5;
-let reservasFeitas = parseInt(
-  localStorage.getItem("reservasFeitas_auditorio") || "0"
-);
-let ultimaReserva = parseInt(
-  localStorage.getItem("ultimaReserva_auditorio") || "0"
-);
-
-function verificarLimiteReservas() {
-  const agora = Date.now();
-  const umaHora = 3600000;
-  if (agora - ultimaReserva > umaHora) {
-    reservasFeitas = 0;
-    localStorage.setItem("reservasFeitas_auditorio", "0");
-  }
-  if (reservasFeitas >= LIMITE_RESERVAS_POR_HORA) {
-    throw new Error(
-      `Limite de ${LIMITE_RESERVAS_POR_HORA} reservas por hora excedido. Tente novamente mais tarde.`
-    );
-  }
-}
-
-function incrementarContadorReservas() {
-  reservasFeitas++;
-  ultimaReserva = Date.now();
-  localStorage.setItem("reservasFeitas_auditorio", reservasFeitas.toString());
-  localStorage.setItem("ultimaReserva_auditorio", ultimaReserva.toString());
-}
-
-function validarDadosReserva(reservaData) {
-  const erros = [];
-  if (!reservaData.responsavel || reservaData.responsavel.trim().length < 2) {
-    erros.push("Nome do responsável deve ter pelo menos 2 caracteres");
-  }
-  const agora = new Date();
-  const dataReserva = new Date(reservaData.data + "T" + reservaData.horaInicio);
-  const margemMinutos = 30 * 60 * 1000;
-  if (dataReserva.getTime() <= agora.getTime() + margemMinutos) {
-    const minutosRestantes = Math.ceil(
-      (dataReserva.getTime() - agora.getTime()) / (60 * 1000)
-    );
-    if (minutosRestantes <= 0) {
-      erros.push("Não é possível fazer reservas para horários que já passaram");
-    } else {
-      erros.push(
-        `Reservas devem ser feitas com pelo menos 30 minutos de antecedência (faltam ${minutosRestantes} min)`
-      );
+// Monitorar estado de autenticação e controlar loader
+monitorAuthState(function(user) {
+  const userGreetingElem = document.getElementById("userGreeting");
+  const logoutContainer = document.getElementById("logoutContainer");
+  const loginModal = document.getElementById("loginModal");
+  if (user) {
+    usuarioAutenticado = user;
+    const userName = user.displayName ? user.displayName : user.email.split("@")[0];
+    if (userGreetingElem) userGreetingElem.textContent = `Bem-vindo, ${userName}`;
+    if (!document.getElementById("btnLogout")) {
+      const btnLogout = document.createElement("button");
+      btnLogout.id = "btnLogout";
+      btnLogout.textContent = "Sair";
+      btnLogout.style.cssText = "margin-left: 10px; padding: 0.3rem 0.6rem; border: none; background: #dc3545; color: white; border-radius: 4px; cursor: pointer;";
+      if (logoutContainer) logoutContainer.appendChild(btnLogout);
+      btnLogout.addEventListener("click", logout);
     }
+    if (window.toggleNovaReserva) window.toggleNovaReserva(user.email);
+    if (loginModal) {
+      loginModal.style.display = "none";
+      loginModal.style.opacity = "0";
+      loginModal.style.pointerEvents = "none";
+      console.log("[DEBUG] Modal de login ocultado por autenticação detectada.");
+    } else {
+      console.warn("[DEBUG] loginModal não encontrado ao tentar ocultar.");
+    }
+    carregarReservasDoCache();
+    if (!unsubscribeReservas) carregarDados();
+    if (window.hidePageLoader) setTimeout(window.hidePageLoader, 200);
+  } else {
+    usuarioAutenticado = null;
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) btnLogout.remove();
+    if (window.toggleNovaReserva) window.toggleNovaReserva(null);
+    if (typeof unsubscribeReservas === "function") {
+      try { unsubscribeReservas(); } catch (_) {}
+      unsubscribeReservas = null;
+    }
+    reservas = [];
+    atualizarInterface();
+    if (loginModal) {
+      loginModal.style.display = "flex";
+      loginModal.style.opacity = "1";
+      loginModal.style.pointerEvents = "auto";
+      console.log("[DEBUG] Modal de login exibido por ausência de autenticação.");
+    } else {
+      console.warn("[DEBUG] loginModal não encontrado ao tentar exibir.");
+    }
+    if (window.hidePageLoader) setTimeout(window.hidePageLoader, 400);
   }
-  if (reservaData.horaInicio >= reservaData.horaFim) {
+});
+  // ...existing code...
     erros.push("Horário de início deve ser anterior ao horário de fim");
-  }
+  
   const horaInicioNum = parseInt(reservaData.horaInicio.replace(":", ""));
   const horaFimNum = parseInt(reservaData.horaFim.replace(":", ""));
   if (horaInicioNum < 600 || horaFimNum > 2200) {
@@ -94,7 +85,7 @@ function validarDadosReserva(reservaData) {
     erros.push("Duração máxima da reserva: 8 horas");
   }
   return erros;
-}
+
 
 function sanitizarDados(reservaData) {
   const base = {
