@@ -11,91 +11,177 @@
   </head>
   <body>
     <div
-      style="
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-      "
+      class="portal-bg"
+      style="min-height: 100vh; display: flex; flex-direction: column"
     >
-      <h1
+      <header style="padding: 2.5rem 0 1.2rem 0; text-align: center">
+        <img
+          src="LogoPGE_Horizontal-Branca--2048x948.png"
+          alt="Logo PGE"
+          style="
+            max-width: 320px;
+            width: 90%;
+            margin-bottom: 1.2rem;
+            filter: drop-shadow(0 2px 12px #2228);
+          "
+        />
+        <h1
+          style="
+            font-size: 2.3rem;
+            color: #fff;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+          "
+        >
+          Sistema de Reserva de Salas
+        </h1>
+        <h2
+          style="
+            font-size: 1.18rem;
+            color: #e0e0e0;
+            font-weight: 400;
+            margin-bottom: 1.7rem;
+          "
+        >
+          Escolha abaixo a sala desejada para consultar ou reservar.
+        </h2>
+      </header>
+      <main
         style="
-          font-size: 2.2rem;
-          margin-bottom: 0.7rem;
-          color: #f5f0f0;
-          text-align: center;
-        "
-      >
-        Bem-vindo ao Sistema de Reserva de salas da PGE - SC
-      </h1>
-      <h2
-        style="
-          font-size: 1.25rem;
-          font-weight: 400;
-          color: #e0e0e0;
-          margin-bottom: 2.1rem;
-          text-align: center;
-          max-width: 520px;
-        "
-      >
-        Escolha uma das salas abaixo para iniciar sua consulta ou reserva.
-      </h2>
-      <div
-        style="
+          flex: 1;
           display: flex;
-          gap: 2rem;
-          flex-wrap: wrap;
+          flex-direction: column;
+          align-items: center;
           justify-content: center;
         "
       >
-        <a href="sala-cest/" style="text-decoration: none">
-          <button
+        <div
+          style="
+            display: flex;
+            gap: 2.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 2.2rem;
+          "
+        >
+          <a href="sala-cest/" style="text-decoration: none">
+            <div
+              class="sala-card"
+              style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #fff;
+                border-radius: 18px;
+                box-shadow: 0 4px 24px rgba(102, 126, 234, 0.18);
+                padding: 2.2rem 2.5rem;
+                min-width: 260px;
+                max-width: 320px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                transition: transform 0.15s, box-shadow 0.15s;
+                cursor: pointer;
+                border: none;
+                gap: 0.7em;
+              "
+              onmouseover="this.style.transform='translateY(-6px) scale(1.03)';this.style.boxShadow='0 8px 32px rgba(102,126,234,0.22)';"
+              onmouseout="this.style.transform='';this.style.boxShadow='0 4px 24px rgba(102,126,234,0.18)';"
+            >
+              <span style="font-size: 2.7rem; margin-bottom: 0.3em">🏢</span>
+              <div
+                style="
+                  font-size: 1.25rem;
+                  font-weight: 700;
+                  margin-bottom: 0.2em;
+                "
+              >
+                Sala de Reuniões CEST/EPPE
+              </div>
+              <div style="font-size: 1.02rem; font-weight: 400; opacity: 0.93">
+                Capacidade: 9 pessoas<br />1º Andar - Prédio Sede
+              </div>
+            </div>
+          </a>
+          <a href="sala-auditorio/" style="text-decoration: none">
+            <div
+              class="sala-card"
+              style="
+                background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+                color: #333;
+                border-radius: 18px;
+                box-shadow: 0 4px 24px rgba(247, 151, 30, 0.13);
+                padding: 2.2rem 2.5rem;
+                min-width: 260px;
+                max-width: 320px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                transition: transform 0.15s, box-shadow 0.15s;
+                cursor: pointer;
+                border: none;
+                gap: 0.7em;
+              "
+              onmouseover="this.style.transform='translateY(-6px) scale(1.03)';this.style.boxShadow='0 8px 32px rgba(247,151,30,0.18)';"
+              onmouseout="this.style.transform='';this.style.boxShadow='0 4px 24px rgba(247,151,30,0.13)';"
+            >
+              <span style="font-size: 2.7rem; margin-bottom: 0.3em">🏛️</span>
+              <div
+                style="
+                  font-size: 1.25rem;
+                  font-weight: 700;
+                  margin-bottom: 0.2em;
+                "
+              >
+                Auditório Anexo II - PGE
+              </div>
+              <div style="font-size: 1.02rem; font-weight: 400; opacity: 0.93">
+                Capacidade: 80 pessoas<br />Térreo - Prédio Sede
+              </div>
+            </div>
+          </a>
+        </div>
+        <div style="margin-bottom: 2.5rem; text-align: center">
+          <div
             style="
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: #fff;
-              border: none;
-              border-radius: 14px;
-              padding: 2.2rem 2.5rem;
-              font-size: 1.3rem;
-              font-weight: 700;
-              box-shadow: 0 4px 24px rgba(102, 126, 234, 0.18);
-              cursor: pointer;
-              transition: transform 0.15s;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 0.7em;
+              background: rgba(255, 255, 255, 0.1);
+              border-radius: 10px;
+              padding: 1.1rem 1.5rem;
+              color: #f5f0f0;
+              font-size: 1.08rem;
+              max-width: 420px;
+              margin: 0 auto;
+              box-shadow: 0 2px 12px #2222;
             "
           >
-            <span style="font-size: 2.5rem">🏢</span>
-            Sala de Reuniões CEST/EPPE
-          </button>
-        </a>
-        <a href="sala-auditorio/" style="text-decoration: none">
-          <button
-            style="
-              background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
-              color: #333;
-              border: none;
-              border-radius: 14px;
-              padding: 2.2rem 2.5rem;
-              font-size: 1.3rem;
-              font-weight: 700;
-              box-shadow: 0 4px 24px rgba(247, 151, 30, 0.13);
-              cursor: pointer;
-              transition: transform 0.15s;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 0.7em;
-            "
+            <strong>Como funciona?</strong><br />
+            <span style="font-size: 0.98rem; font-weight: 400"
+              >1. Escolha a sala desejada<br />2. Faça login com sua conta
+              Google<br />3. Consulte ou realize sua reserva</span
+            >
+          </div>
+        </div>
+      </main>
+      <footer
+        style="
+          background: rgba(0, 0, 0, 0.18);
+          padding: 1.2rem 0 0.7rem 0;
+          text-align: center;
+          color: #e0e0e0;
+          font-size: 0.98rem;
+        "
+      >
+        <div style="margin-bottom: 0.2em">
+          Dúvidas ou problemas?
+          <a
+            href="mailto:eppe@pge.sc.gov.br"
+            style="color: #ffd200; text-decoration: underline"
+            >eppe@pge.sc.gov.br</a
           >
-            <span style="font-size: 2.5rem">🏛️</span>
-            Auditório Anexo II - PGE
-          </button>
-        </a>
-      </div>
+        </div>
+        <div style="opacity: 0.7">
+          © 2025 Procuradoria-Geral do Estado de Santa Catarina
+        </div>
+      </footer>
     </div>
   </body>
 </html>
