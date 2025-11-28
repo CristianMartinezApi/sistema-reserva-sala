@@ -1,4 +1,4 @@
-import app from "./firebase-config.js";
+import app from "../firebase-config.js";
 import { monitorAuthState } from "./auth-auditorio.js";
 import {
   getFirestore,

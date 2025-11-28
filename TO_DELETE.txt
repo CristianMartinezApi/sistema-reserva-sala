@@ -1,0 +1,7 @@
+Removendo arquivos desnecessários para produção:
+- firebase-debug.log
+- sala-cest/auth-cest.js
+- sala-auditorio/auth-auditorio.js
+- sala-cest/firebase-script.js
+- sala-auditorio/firebase-script.js
+- firebase-script.js (raiz)

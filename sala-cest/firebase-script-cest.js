@@ -1,4 +1,4 @@
-import app from "./firebase-config.js";
+import app from "../firebase-config.js";
 import {
   getFirestore,
   collection,
@@ -119,9 +119,14 @@ function carregarReservasDoCache() {
     if (!Array.isArray(parsed)) return false;
     reservas = parsed;
     atualizarInterface();
-    if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+    setTimeout(() => {
+      if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+    }, 50);
     return true;
   } catch (e) {
+    setTimeout(() => {
+      if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+    }, 50);
     return false;
   }
 }
@@ -152,15 +157,26 @@ function carregarDados() {
         } catch (e) {}
         atualizarStatusConexao(true);
         atualizarInterface();
+        setTimeout(() => {
+          if (typeof window.hidePageLoader === "function")
+            window.hidePageLoader();
+        }, 50);
       },
       (error) => {
         atualizarStatusConexao(false);
+        setTimeout(() => {
+          if (typeof window.hidePageLoader === "function")
+            window.hidePageLoader();
+        }, 50);
       }
     );
     unsubscribeReservas = unsub;
     return unsub;
   } catch (error) {
     atualizarStatusConexao(false);
+    setTimeout(() => {
+      if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+    }, 50);
   }
 }
 
@@ -654,9 +670,9 @@ function mostrarMensagem(texto, tipo = "info") {
 monitorAuthState((user) => {
   if (user) {
     usuarioAutenticado = user;
-    carregarReservasDoCache();
-    if (!unsubscribeReservas) carregarDados();
-    if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+    if (!carregarReservasDoCache()) {
+      if (!unsubscribeReservas) carregarDados();
+    }
   } else {
     usuarioAutenticado = null;
     if (typeof unsubscribeReservas === "function") {
@@ -667,12 +683,32 @@ monitorAuthState((user) => {
     }
     reservas = [];
     atualizarInterface();
+    setTimeout(() => {
+      if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+    }, 50);
     window.location.href = "/index.html";
   }
 });
 
+// Garante que window.hidePageLoader sempre exista e funcione
+if (typeof window.hidePageLoader !== "function") {
+  window.hidePageLoader = function () {
+    const loader = document.getElementById("pageLoader");
+    if (loader) {
+      loader.style.opacity = "0";
+      setTimeout(() => {
+        if (loader.parentNode) loader.parentNode.removeChild(loader);
+      }, 350);
+    }
+  };
+}
+
 document.addEventListener("DOMContentLoaded", function () {
-  carregarReservasDoCache();
+  // Timeout de segurança: garante que o loader nunca fique travado
+  setTimeout(() => {
+    if (typeof window.hidePageLoader === "function") window.hidePageLoader();
+  }, 8000);
+
   setTimeout(() => {
     if (document.getElementById("statusAtual")) {
       setInterval(verificarStatusAtual, 60000);
