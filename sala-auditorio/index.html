@@ -9,8 +9,16 @@
     <title>Reserva da Sala de Reunião</title>
     <!-- Favicon removido para evitar erro 404 -->
     <link rel="stylesheet" href="style.css" />
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
   </head>
   <body>
+    <!-- Botão de voltar para o início -->
+    <nav class="nav-voltar-inicio">
+      <a href="/index.html" class="btn-voltar-inicio">
+        <i data-lucide="arrow-left" class="icon-voltar"></i> Início
+      </a>
+    </nav>
     <!-- Loader visual institucional -->
     <div
       id="pageLoader"
@@ -29,7 +37,7 @@
       <div style="display: flex; flex-direction: column; align-items: center">
         <div style="margin-bottom: 1.2em">
           <img
-            src="../LogoPGE_Horizontal-Branca--2048x948.png"
+            src="../public/LogoPGE_Horizontal-Branca--2048x948.png"
             alt="Logo PGE"
             style="
               max-width: 180px;
@@ -90,12 +98,12 @@
       <!-- Header com logos -->
       <div class="logos-header">
         <img
-          src="LogoPGE_Horizontal-Branca--2048x948.png"
+          src="../public/LogoPGE_Horizontal-Branca--2048x948.png"
           alt="Logo 1"
           class="logo-img logo-1"
         />
         <img
-          src="eppe-logo-color-branco.png"
+          src="../public/eppe-logo-color-branco.png"
           alt="Logo 2"
           class="logo-img logo-2"
         />
@@ -106,29 +114,74 @@
       <!-- Header principal -->
       <header>
         <div class="header-content">
-          <h1>🏛️ Sala Auditório</h1>
+          <h1>
+            <i data-lucide="landmark" style="margin-right: 6px"></i> Sala
+            Auditório
+          </h1>
           <div class="sala-info">
             <div class="info-item">
-              <span class="info-icon">📍</span>
+              <i data-lucide="map-pin" class="info-icon"></i>
               <span>Localização: Prédio Sede - Térreo</span>
             </div>
             <div class="info-item">
-              <span class="info-icon">👥</span>
+              <i data-lucide="users" class="info-icon"></i>
               <span>Capacidade: 80 pessoas</span>
             </div>
           </div>
           <div class="estrutura-info">
             <h3>Estrutura Disponível:</h3>
             <div class="estrutura-grid">
-              <div class="estrutura-item">🎤 Microfone</div>
-              <div class="estrutura-item">🔈 Caixa de Som</div>
-              <div class="estrutura-item">🎥 Projetor</div>
-              <div class="estrutura-item">❄️ Ar Condicionado</div>
-              <div class="estrutura-item">🪑 Cadeiras</div>
-              <div class="estrutura-item">🖥️ Computador</div>
+              <div class="estrutura-item">
+                <i data-lucide="mic" style="margin-right: 4px"></i> Microfone
+              </div>
+              <div class="estrutura-item">
+                <i data-lucide="volume-2" style="margin-right: 4px"></i> Caixa
+                de Som
+              </div>
+              <div class="estrutura-item">
+                <i data-lucide="projector" style="margin-right: 4px"></i>
+                Projetor
+              </div>
+              <div class="estrutura-item">
+                <i data-lucide="snowflake" style="margin-right: 4px"></i> Ar
+                Condicionado
+              </div>
+              <div class="estrutura-item">
+                <div
+                  class="estrutura-item"
+                  style="display: flex; align-items: center; gap: 4px"
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      margin-right: 4px;
+                      min-width: 22px;
+                      min-height: 22px;
+                      vertical-align: middle;
+                    "
+                  >
+                    <rect x="7" y="10" width="10" height="5" rx="2" />
+                    <rect x="9" y="3" width="6" height="7" rx="2" />
+                    <line x1="7" y1="15" x2="7" y2="21" />
+                    <line x1="17" y1="15" x2="17" y2="21" />
+                  </svg>
+                  Cadeiras
+                </div>
+              </div>
+              <div class="estrutura-item">
+                <i data-lucide="monitor" style="margin-right: 4px"></i>
+                Computador
+              </div>
             </div>
             <div class="aviso-notebook">
-              <span class="aviso-icon">💻</span>
+              <i data-lucide="laptop" class="aviso-icon"></i>
               <span
                 ><strong>Importante:</strong> Levar apresentação em pendrive ou
                 notebook</span
@@ -140,7 +193,13 @@
 
       <!-- Status Atual da Sala -->
       <div class="status-atual" id="statusAtual">
-        <div class="status-icon">🟢</div>
+        <div class="status-icon">
+          <i
+            data-lucide="circle"
+            color="#28a745"
+            style="width: 1.2em; height: 1.2em"
+          ></i>
+        </div>
         <h2>Conectando...</h2>
         <p>Carregando dados do sistema...</p>
       </div>
@@ -148,7 +207,10 @@
       <div class="main-grid">
         <!-- Consulta Rápida -->
         <div class="card">
-          <h2>🔍 Consultar Disponibilidade</h2>
+          <h2>
+            <i data-lucide="search" style="margin-right: 4px"></i> Consultar
+            Disponibilidade
+          </h2>
 
           <!-- Calendário Mensal (visual) -->
           <div class="calendar" id="calendar">
@@ -204,7 +266,10 @@
 
         <!-- Formulário de Nova Reserva -->
         <div class="card" id="cardNovaReserva" style="display: none">
-          <h2>📅 Nova Reserva</h2>
+          <h2>
+            <i data-lucide="calendar-plus" style="margin-right: 4px"></i> Nova
+            Reserva
+          </h2>
           <!-- Área para exibir o email do usuário autenticado -->
           <div
             class="user-auth"
@@ -271,7 +336,10 @@
           id="cardMensagemNaoAutorizado"
           style="display: none; margin-bottom: 1.5em"
         >
-          <h2 style="margin-bottom: 0.7em">📅 Nova Reserva</h2>
+          <h2 style="margin-bottom: 0.7em">
+            <i data-lucide="calendar-plus" style="margin-right: 4px"></i> Nova
+            Reserva
+          </h2>
           <div style="padding: 1em; font-size: 1.05em">
             <strong
               >Nesta sala, apenas pessoas autorizadas podem fazer
@@ -290,7 +358,10 @@
       <!-- Agenda de Reservas -->
       <div class="agenda-card">
         <div class="agenda-header">
-          <h2>📋 Próximas Reservas</h2>
+          <h2>
+            <i data-lucide="list" style="margin-right: 4px"></i> Próximas
+            Reservas
+          </h2>
           <span class="contador-reservas" id="contadorReservas"
             >0 reservas</span
           >
@@ -305,21 +376,26 @@
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-section">
-          <h3>📞 Suporte Técnico</h3>
+          <h3>
+            <i data-lucide="help-circle" style="margin-right: 4px"></i> Suporte
+            Técnico
+          </h3>
           <div class="contact-info">
             <div class="contact-item">
-              <span class="contact-icon">📧</span>
+              <i data-lucide="mail" class="contact-icon"></i>
               <span>Email: eppe@pge.sc.gov.br</span>
             </div>
             <div class="contact-item">
-              <span class="contact-icon">📱</span>
+              <i data-lucide="phone" class="contact-icon"></i>
               <span>Telefone: (48) 3664-5938</span>
             </div>
           </div>
         </div>
 
         <div class="footer-section">
-          <h3>ℹ️ Informações</h3>
+          <h3>
+            <i data-lucide="info" style="margin-right: 4px"></i> Informações
+          </h3>
           <div class="info-list">
             <p>
               Cancelamento: <strong>apenas pelo responsável autenticado</strong>
@@ -329,7 +405,7 @@
         </div>
 
         <div class="footer-section">
-          <h3>🏢 EPPE</h3>
+          <h3><i data-lucide="building" style="margin-right: 4px"></i> EPPE</h3>
           <div class="institution-info">
             <p>© 2025 - Sistema de Reservas</p>
           </div>
@@ -346,6 +422,11 @@
 
     <!-- APENAS ESTE SCRIPT -->
     <script type="module" src="firebase-script-auditorio.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.lucide) lucide.createIcons();
+      });
+    </script>
     <script>
       // Exibe o formulário de nova reserva apenas para o e-mail autorizado
       // e mostra mensagem para não autorizados

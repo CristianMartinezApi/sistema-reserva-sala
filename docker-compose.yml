@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   reserva-sala:
@@ -8,8 +8,8 @@ services:
       - "8088:8080"
     env_file:
       - .env
-    volumes:
-      - .:/app
+    # volumes:
+    #   - .:/app  # Remover em produção para não sobrescrever o build do container
     restart: unless-stopped
     networks:
       - miner

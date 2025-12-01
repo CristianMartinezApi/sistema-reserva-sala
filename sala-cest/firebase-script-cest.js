@@ -461,6 +461,7 @@ function renderizarReservas() {
   const lista = document.getElementById("listaReservas");
   const contador = document.getElementById("contadorReservas");
   if (!lista || !contador) return;
+  console.log("[RESERVAS] Todas as reservas carregadas:", reservas);
   if (reservas.length === 0) {
     lista.innerHTML =
       '<div class="no-reservas">Nenhuma reserva agendada. Faça a primeira reserva! 🎯</div>';
@@ -478,6 +479,7 @@ function renderizarReservas() {
       const dataB = new Date(b.data + "T" + b.horaInicio);
       return dataA - dataB;
     });
+  console.log("[RESERVAS] Próximas reservas filtradas:", reservasFuturas);
   contador.textContent = `${reservasFuturas.length} reserva${
     reservasFuturas.length !== 1 ? "s" : ""
   }`;
@@ -670,9 +672,8 @@ function mostrarMensagem(texto, tipo = "info") {
 monitorAuthState((user) => {
   if (user) {
     usuarioAutenticado = user;
-    if (!carregarReservasDoCache()) {
-      if (!unsubscribeReservas) carregarDados();
-    }
+    // Sempre carrega direto do Firestore, ignorando cache local
+    if (!unsubscribeReservas) carregarDados();
   } else {
     usuarioAutenticado = null;
     if (typeof unsubscribeReservas === "function") {
@@ -735,19 +736,8 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.href = "/index.html";
         return;
       }
-      // Restringe reserva apenas ao e-mail autorizado
+      // Qualquer usuário autenticado pode reservar na sala CEST
       const responsavelEmail = usuarioAutenticado.email;
-      const emailAutorizado = "cristianmartinez@pge.sc.gov.br";
-      if (responsavelEmail.toLowerCase() !== emailAutorizado) {
-        mostrarMensagem(
-          "Nesta sala, apenas pessoas autorizadas podem fazer reservas.\n" +
-            "\nPara solicitar agendamento, entre em contato com o setor responsável:\n" +
-            "Email: eppe@pge.sc.gov.br\n" +
-            "Telefone: (48) 3664-5938",
-          "erro"
-        );
-        return;
-      }
       const responsavelNome =
         usuarioAutenticado.displayName || responsavelEmail.split("@")[0];
       const data = document.getElementById("data").value;
@@ -758,7 +748,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const novaReserva = {
         responsavel: responsavelNome,
         responsavelEmail,
-        responsavelNome,
         data,
         horaInicio,
         horaFim,

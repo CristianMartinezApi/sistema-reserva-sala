@@ -6,8 +6,10 @@
     <!-- Chave do App Check (opcional). Preencha para habilitar proteção. -->
     <meta name="app-check-site-key" content="" />
     <title>Reserva da Sala de Reunião</title>
-    <link rel="shortcut icon" href="icon.ico.png" type="image/x-icon" />
+    <link rel="shortcut icon" href="public/icon.ico.png" type="image/x-icon" />
     <link rel="stylesheet" href="style.css" />
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
   </head>
   <body>
     <div
@@ -113,7 +115,7 @@
       ></div>
       <header style="padding: 2.5rem 0 1.2rem 0; text-align: center">
         <img
-          src="LogoPGE_Horizontal-Branca--2048x948.png"
+          src="public/LogoPGE_Horizontal-Branca--2048x948.png"
           alt="Logo PGE"
           style="
             max-width: 320px;
@@ -286,5 +288,10 @@
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="auth.js"></script>
     <script type="module" src="portal-auth.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.lucide) lucide.createIcons();
+      });
+    </script>
   </body>
 </html>

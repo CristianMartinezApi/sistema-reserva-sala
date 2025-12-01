@@ -5,19 +5,138 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  doc,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
   getAuth,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+// Inicialização do Firestore
 const db = getFirestore(app);
-const auth = getAuth(app);
+
+// Função global para atualizar status de conexão
+function atualizarStatusConexao(conectado) {
+  if (!document.getElementById("statusConexao")) return;
+  const statusDiv = document.getElementById("statusConexao");
+  if (conectado) {
+    statusDiv.innerHTML = "✅ Conectado ao Firebase - Dados sincronizados";
+    statusDiv.style.background = "#28a745";
+    setTimeout(() => {
+      statusDiv.style.display = "none";
+    }, 5000);
+  } else {
+    statusDiv.innerHTML = "❌ Erro de conexão - Verifique sua internet";
+    statusDiv.style.background = "#dc3545";
+    statusDiv.style.display = "block";
+  }
+}
+
+// Função para deletar reserva do Auditório
+async function deletarReserva(id) {
+  try {
+    await deleteDoc(doc(db, COLECAO_RESERVAS, id));
+    mostrarMensagem("Reserva cancelada com sucesso!", "sucesso");
+    // Atualiza interface após exclusão
+    setTimeout(() => {
+      if (typeof carregarDados === "function") carregarDados();
+      else window.location.reload();
+    }, 500);
+  } catch (error) {
+    console.error("Erro ao cancelar reserva:", error);
+    mostrarMensagem("Erro ao cancelar reserva. Tente novamente.", "erro");
+  }
+}
+
+// Função global de cancelamento de reserva
+async function cancelarReserva(id) {
+  const reserva = reservas.find((r) => r.id === id);
+  if (!reserva) return;
+  if (!usuarioAutenticado) {
+    mostrarMensagem("Você precisa estar autenticado para cancelar.", "erro");
+    return;
+  }
+  if (
+    reserva.responsavelEmail &&
+    reserva.responsavelEmail !== usuarioAutenticado.email
+  ) {
+    mostrarMensagem("Apenas o responsável pela reserva pode cancelar.", "erro");
+    return;
+  }
+  const confirmar = confirm(
+    `Confirmar cancelamento?\n\n` +
+      `📋 Assunto: ${reserva.assunto}\n` +
+      `📅 Data: ${reserva.data}\n` +
+      `⏰ Horário: ${reserva.horaInicio} às ${reserva.horaFim}`
+  );
+  if (!confirmar) return;
+  try {
+    await deletarReserva(id);
+  } catch (error) {}
+}
+window.cancelarReserva = cancelarReserva;
+// Função global para mostrar mensagens do sistema
+function mostrarMensagem(texto, tipo = "info") {
+  const mensagemAnterior = document.querySelector(".mensagem-sistema");
+  if (mensagemAnterior) mensagemAnterior.remove();
+  const mensagem = document.createElement("div");
+  mensagem.className = `mensagem-sistema ${tipo}`;
+  mensagem.textContent = texto;
+  mensagem.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 1000;
+    max-width: 350px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: slideInRight 0.3s ease;
+    cursor: pointer;
+  `;
+  mensagem.title = "Clique para fechar";
+  mensagem.addEventListener("click", () => {
+    mensagem.style.animation = "slideOutRight 0.3s ease";
+    setTimeout(() => mensagem.remove(), 300);
+  });
+  switch (tipo) {
+    case "sucesso":
+      mensagem.style.background = "linear-gradient(135deg, #28a745, #20c997)";
+      break;
+    case "erro":
+      mensagem.style.background = "linear-gradient(135deg, #dc3545, #e74c3c)";
+      break;
+    case "aviso":
+      mensagem.style.background = "linear-gradient(135deg, #ffc107, #f39c12)";
+      mensagem.style.color = "#000";
+      break;
+    default:
+      mensagem.style.background = "linear-gradient(135deg, #17a2b8, #3498db)";
+  }
+  document.body.appendChild(mensagem);
+  let tempoBase = 6000;
+  let tempoExtra = Math.min(texto.length * 50, 8000);
+  let tempoTotal =
+    tipo === "erro" || tipo === "aviso" ? tempoBase + tempoExtra : tempoBase;
+  setTimeout(() => {
+    if (mensagem.parentNode) {
+      mensagem.style.animation = "slideOutRight 0.3s ease";
+      setTimeout(() => mensagem.remove(), 300);
+    }
+  }, tempoTotal);
+}
 
 // Variáveis globais
 let reservas = [];
 let usuarioAutenticado = null;
 let unsubscribeReservas = null;
-const SALA_ID_FIXA = "auditorio";
+const COLECAO_RESERVAS = "reservas_auditorio";
 const CACHE_CHAVE = "reservas_auditorio";
 function pad2(n) {
   return n.toString().padStart(2, "0");
@@ -134,11 +253,11 @@ function renderizarReservas() {
     contador.textContent = "0 reservas";
     return;
   }
-  const agora = new Date();
+  const hojeISO = toISODate(new Date());
   const reservasFuturas = reservas
     .filter((reserva) => {
-      const dataReserva = new Date(reserva.data + "T" + reserva.horaFim);
-      return dataReserva > agora;
+      const resultado = reserva.data >= hojeISO;
+      return resultado;
     })
     .sort((a, b) => {
       const dataA = new Date(a.data + "T" + a.horaInicio);
@@ -315,6 +434,7 @@ function validarDadosReserva(reservaData) {
 
 // Função para adicionar reserva (igual CEST)
 async function adicionarReserva(reservaData) {
+  let docRef = null;
   try {
     const erros = validarDadosReserva(reservaData);
     if (erros.length > 0) {
@@ -332,16 +452,24 @@ async function adicionarReserva(reservaData) {
       ip: "N/A",
       userAgent: navigator.userAgent.substring(0, 200),
     };
-    const docRef = await addDoc(
-      collection(db, "reservas"),
+    docRef = await addDoc(
+      collection(db, COLECAO_RESERVAS),
       reservaComTimestamp
     );
+    if (!docRef || !docRef.id) {
+      throw new Error(
+        "[ERRO] addDoc não retornou ID. Reserva pode não ter sido salva."
+      );
+    }
     atualizarInterface();
     mostrarMensagem("Reserva realizada com sucesso! 🎉", "sucesso");
     mostrarModalConfirmacao(dadosLimpos);
     return docRef.id;
   } catch (error) {
-    mostrarMensagem(error.message || "Erro ao salvar reserva.", "erro");
+    mostrarMensagem(
+      (error && error.message) || "Erro ao salvar reserva.",
+      "erro"
+    );
     throw error;
   } finally {
     const btnReservar = document.getElementById("btnReservar");
@@ -449,7 +577,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const novaReserva = {
         responsavel: responsavelNome,
         responsavelEmail,
-        responsavelNome,
         data,
         horaInicio,
         horaFim,
@@ -468,8 +595,8 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function sanitizarDados(reservaData) {
+  // Removido bloco duplicado de declaração de 'base'.
   const base = {
-    salaId: SALA_ID_FIXA,
     responsavel: (reservaData.responsavel || "").trim().substring(0, 100),
     data: reservaData.data,
     horaInicio: reservaData.horaInicio,
@@ -501,10 +628,8 @@ function carregarReservasDoCache() {
     }
     atualizarInterface();
     setTimeout(() => {
-      console.log("Tentando esconder loader (carregarReservasDoCache)");
       if (typeof window.hidePageLoader === "function") {
         window.hidePageLoader();
-        console.log("Loader escondido!");
       } else {
         console.warn("window.hidePageLoader não está definida!");
       }
@@ -518,10 +643,10 @@ function carregarReservasDoCache() {
 }
 
 function carregarDados() {
+  let q;
   try {
-    let q = query(
-      collection(db, "reservas"),
-      where("salaId", "==", SALA_ID_FIXA),
+    q = query(
+      collection(db, COLECAO_RESERVAS),
       orderBy("data", "asc"),
       orderBy("horaInicio", "asc")
     );
@@ -534,26 +659,26 @@ function carregarDados() {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        reservas = [];
+        const docs = [];
         snapshot.forEach((doc) => {
-          reservas.push({ id: doc.id, ...doc.data() });
+          docs.push({ id: doc.id, ...doc.data() });
         });
+        reservas = docs;
         try {
           localStorage.setItem(CACHE_CHAVE, JSON.stringify(reservas));
         } catch (e) {}
         atualizarStatusConexao(true);
         atualizarInterface();
         setTimeout(() => {
-          console.log("Tentando esconder loader (carregarDados)");
           if (typeof window.hidePageLoader === "function") {
             window.hidePageLoader();
-            console.log("Loader escondido!");
           } else {
             console.warn("window.hidePageLoader não está definida!");
           }
         }, 50);
       },
       (error) => {
+        console.error("[DEBUG] Erro no onSnapshot:", error);
         atualizarStatusConexao(false);
         if (typeof window.hidePageLoader === "function")
           window.hidePageLoader();
@@ -563,12 +688,8 @@ function carregarDados() {
     return unsub;
   } catch (error) {
     atualizarStatusConexao(false);
-    console.log("Tentando esconder loader (monitorAuthState)");
     if (typeof window.hidePageLoader === "function") {
       window.hidePageLoader();
-      console.log("Loader escondido!");
-    } else {
-      console.warn("window.hidePageLoader não está definida!");
     }
   }
 
@@ -801,103 +922,4 @@ function carregarDados() {
       renderizarCalendario();
     }
   });
-
-  function mostrarMensagem(texto, tipo = "info") {
-    const mensagemAnterior = document.querySelector(".mensagem-sistema");
-    if (mensagemAnterior) mensagemAnterior.remove();
-    const mensagem = document.createElement("div");
-    mensagem.className = `mensagem-sistema ${tipo}`;
-    mensagem.textContent = texto;
-    mensagem.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 1rem 1.5rem;
-                border-radius: 8px;
-                color: white;
-                font-weight: 600;
-                z-index: 1000;
-                max-width: 350px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                animation: slideInRight 0.3s ease;
-                cursor: pointer;
-            `;
-    mensagem.title = "Clique para fechar";
-    mensagem.addEventListener("click", () => {
-      mensagem.style.animation = "slideOutRight 0.3s ease";
-      setTimeout(() => mensagem.remove(), 300);
-    });
-    switch (tipo) {
-      case "sucesso":
-        mensagem.style.background = "linear-gradient(135deg, #28a745, #20c997)";
-        break;
-      case "erro":
-        mensagem.style.background = "linear-gradient(135deg, #dc3545, #e74c3c)";
-        break;
-      case "aviso":
-        mensagem.style.background = "linear-gradient(135deg, #ffc107, #f39c12)";
-        mensagem.style.color = "#000";
-        break;
-      default:
-        mensagem.style.background = "linear-gradient(135deg, #17a2b8, #3498db)";
-    }
-    document.body.appendChild(mensagem);
-    let tempoBase = 6000;
-    let tempoExtra = Math.min(texto.length * 50, 8000);
-    let tempoTotal =
-      tipo === "erro" || tipo === "aviso" ? tempoBase + tempoExtra : tempoBase;
-    setTimeout(() => {
-      if (mensagem.parentNode) {
-        mensagem.style.animation = "slideOutRight 0.3s ease";
-        setTimeout(() => mensagem.remove(), 300);
-      }
-    }, tempoTotal);
-  }
-
-  async function cancelarReserva(id) {
-    const reserva = reservas.find((r) => r.id === id);
-    if (!reserva) return;
-    if (!usuarioAutenticado) {
-      mostrarMensagem("Você precisa estar autenticado para cancelar.", "erro");
-      return;
-    }
-    if (
-      reserva.responsavelEmail &&
-      reserva.responsavelEmail !== usuarioAutenticado.email
-    ) {
-      mostrarMensagem(
-        "Apenas o responsável pela reserva pode cancelar.",
-        "erro"
-      );
-      return;
-    }
-    const confirmar = confirm(
-      `Confirmar cancelamento?\n\n` +
-        `📋 Assunto: ${reserva.assunto}\n` +
-        `📅 Data: ${reserva.data}\n` +
-        `⏰ Horário: ${reserva.horaInicio} às ${reserva.horaFim}`
-    );
-    if (!confirmar) return;
-    try {
-      await deletarReserva(id);
-    } catch (error) {}
-  }
-  window.cancelarReserva = cancelarReserva;
-
-  function atualizarStatusConexao(conectado) {
-    if (!document.getElementById("statusConexao")) return;
-    const statusDiv = document.getElementById("statusConexao");
-    if (conectado) {
-      statusDiv.innerHTML = "✅ Conectado ao Firebase - Dados sincronizados";
-      statusDiv.style.background = "#28a745";
-      setTimeout(() => {
-        statusDiv.style.display = "none";
-      }, 5000);
-    } else {
-      statusDiv.innerHTML = "❌ Erro de conexão - Verifique sua internet";
-      statusDiv.style.background = "#dc3545";
-      statusDiv.style.display = "block";
-    }
-  }
 }
-// Fim do arquivo: não adicionar nenhuma chave extra
