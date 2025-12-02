@@ -2,6 +2,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// import removido para evitar duplicidade
 // Função para mostrar mensagem de sistema
 function mostrarMensagem(texto, tipo = "info") {
   const mensagemAnterior = document.querySelector(".mensagem-sistema");
@@ -115,6 +116,7 @@ import {
 import {
   getAuth,
   onAuthStateChanged,
+  updateProfile,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const SALA_ID = "auditorio";
@@ -145,11 +147,13 @@ function atualizarUserGreeting(email) {
         usuarioAutenticado.displayName ||
         (usuarioAutenticado.email
           ? usuarioAutenticado.email.split("@")[0]
-          : "");
+          : "Usuário não identificado");
     } else if (email) {
       nome = email.split("@")[0];
+    } else {
+      nome = "Usuário não identificado";
     }
-    el.textContent = nome ? `Usuário: ${nome}` : "";
+    el.textContent = nome ? `Usuário: ${nome}` : "Usuário não identificado";
   }
   window.toggleNovaReserva && window.toggleNovaReserva(email);
 }
@@ -161,6 +165,14 @@ function hideLoaderIfReady() {
 function listenAuthAndReservas() {
   const auth = getAuth(app);
   onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log("[AUDITÓRIO] Usuário autenticado:", {
+        displayName: user.displayName,
+        email: user.email,
+      });
+    } else {
+      console.log("[AUDITÓRIO] Nenhum usuário autenticado");
+    }
     window.usuarioAutenticado = user;
     let nome = "";
     let email = null;
@@ -168,8 +180,18 @@ function listenAuthAndReservas() {
       email = user.email || null;
       nome = user.displayName || (email ? email.split("@")[0] : "");
     }
-    atualizarStatusConectado(nome);
-    atualizarUserGreeting(email);
+    atualizarStatusConectado(nome); // nome agora prioriza displayName
+    atualizarUserGreeting(email); // email usado para fallback
+    // Padronizar exibição do nome do usuário logado
+    const userGreeting = document.getElementById("userGreeting");
+    if (userGreeting && window.usuarioAutenticado) {
+      const nomePadrao =
+        window.usuarioAutenticado.displayName ||
+        (window.usuarioAutenticado.email
+          ? window.usuarioAutenticado.email.split("@")[0]
+          : "Usuário não identificado");
+      userGreeting.textContent = `Usuário: ${nomePadrao}`;
+    }
     // Listen to reservas if authenticated
     if (unsubscribeReservas) unsubscribeReservas();
     if (user) {

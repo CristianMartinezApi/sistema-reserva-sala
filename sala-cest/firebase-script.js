@@ -39,11 +39,13 @@ function atualizarUserGreeting(email) {
         usuarioAutenticado.displayName ||
         (usuarioAutenticado.email
           ? usuarioAutenticado.email.split("@")[0]
-          : "");
+          : "Usuário não identificado");
     } else if (email) {
       nome = email.split("@")[0];
+    } else {
+      nome = "Usuário não identificado";
     }
-    el.textContent = nome ? `Usuário: ${nome}` : "";
+    el.textContent = nome ? `Usuário: ${nome}` : "Usuário não identificado";
   }
   window.toggleNovaReserva && window.toggleNovaReserva(email);
 }
@@ -55,6 +57,14 @@ function hideLoaderIfReady() {
 function listenAuthAndReservas() {
   const auth = getAuth(app);
   onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log("[CEST] Usuário autenticado:", {
+        displayName: user.displayName,
+        email: user.email,
+      });
+    } else {
+      console.log("[CEST] Nenhum usuário autenticado");
+    }
     window.usuarioAutenticado = user;
     usuarioAutenticado = user;
     let nome = "";
@@ -65,6 +75,16 @@ function listenAuthAndReservas() {
     }
     // Removido: status da sala é atualizado por interface-sala.js
     atualizarUserGreeting(email);
+    // Padronizar exibição do nome do usuário logado
+    const userGreeting = document.getElementById("userGreeting");
+    if (userGreeting && window.usuarioAutenticado) {
+      const nomePadrao =
+        window.usuarioAutenticado.displayName ||
+        (window.usuarioAutenticado.email
+          ? window.usuarioAutenticado.email.split("@")[0]
+          : "Usuário não identificado");
+      userGreeting.textContent = `Usuário: ${nomePadrao}`;
+    }
     // Listen to reservas if authenticated
     if (unsubscribeReservas) unsubscribeReservas();
     if (user) {

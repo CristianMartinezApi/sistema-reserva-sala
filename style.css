@@ -1,3 +1,36 @@
+/* Barra de navegação e botão Início */
+.nav-voltar-inicio {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1rem 0.5rem;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.btn-voltar-inicio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-voltar-inicio:hover {
+  background: rgba(102, 126, 234, 0.15);
+  color: #e2e8f0;
+}
+
+.icon-voltar {
+  font-size: 1.2em;
+  vertical-align: middle;
+}
 * {
   margin: 0;
   padding: 0;
@@ -2978,7 +3011,7 @@ header {
   }
 }
 .user-greeting {
-  color: #333;
+  color: #fff;
   background: linear-gradient(
     135deg,
     rgba(102, 126, 234, 0.1),
