@@ -693,7 +693,7 @@ function configurarSeletor() {
   // Só configura uma vez
   if (seletorConfigurado) return;
 
-  console.log("🔧 Configurando seletor de salas...");
+  // Debug removido
 
   // Toggle do dropdown
   dropdownButton.addEventListener("click", function (e) {
@@ -712,11 +712,7 @@ function configurarSeletor() {
   dropdownMenu.addEventListener("click", function (e) {
     e.stopPropagation();
     e.preventDefault();
-    console.log(
-      "🖱️ Click no menu! Target:",
-      e.target.tagName,
-      e.target.className
-    );
+    // Debug removido
     const item = e.target.closest(".dropdown-item");
     if (item) {
       // ...existing code...

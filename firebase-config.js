@@ -15,9 +15,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-console.log("[DEBUG] Config Firebase:", firebaseConfig);
-console.log("[DEBUG] App Firebase:", app.options);
-
 // Inicializa App Check (opcional) se houver chave definida em meta tag
 try {
   const meta =

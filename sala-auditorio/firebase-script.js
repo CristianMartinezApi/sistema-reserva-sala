@@ -165,14 +165,7 @@ function hideLoaderIfReady() {
 function listenAuthAndReservas() {
   const auth = getAuth(app);
   onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("[AUDITÓRIO] Usuário autenticado:", {
-        displayName: user.displayName,
-        email: user.email,
-      });
-    } else {
-      console.log("[AUDITÓRIO] Nenhum usuário autenticado");
-    }
+    // Debug removido
     window.usuarioAutenticado = user;
     let nome = "";
     let email = null;
