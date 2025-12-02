@@ -1,5 +1,7 @@
 import app from "./firebase-config.js";
-import { monitorAuthState, loginWithGoogle, logout } from "./auth.js";
+import { createAuthHelpers } from "./auth.js";
+
+const { monitorAuthState, loginWithGoogle, logout } = createAuthHelpers(app);
 
 // Elementos do DOM
 const loginModal = document.getElementById("loginModal");

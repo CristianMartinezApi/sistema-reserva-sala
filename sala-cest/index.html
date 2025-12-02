@@ -155,7 +155,7 @@
         </div>
       </header>
       <!-- Status Atual da Sala -->
-      <div class="status-atual" id="statusAtual">
+      <div class="status-atual" id="statusSala">
         <div class="status-icon">
           <i
             data-lucide="circle"
@@ -346,8 +346,20 @@
         </p>
       </div>
     </footer>
-    <!-- APENAS ESTE SCRIPT -->
-    <script type="module" src="firebase-script-cest.js"></script>
+    <!-- Script principal de reservas -->
+    <script>
+      // Função global para esconder o loader institucional
+      window.hidePageLoader = function () {
+        var loader = document.getElementById("pageLoader");
+        if (loader) {
+          loader.style.opacity = 0;
+          setTimeout(function () {
+            loader.style.display = "none";
+          }, 350);
+        }
+      };
+    </script>
+    <script type="module" src="firebase-script.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         if (window.lucide) lucide.createIcons();

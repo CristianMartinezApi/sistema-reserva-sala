@@ -1,261 +1,108 @@
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { monitorAuthState, login, loginWithGoogle } from "./auth-cest.js";
-import {
-  getAuth,
-  signOut,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-// Variáveis globais
-let reservas = [];
-let salas = [];
-let salaAtual = null;
-let calDataAtual = new Date();
-calDataAtual.setDate(1);
-let seletorConfigurado = false;
-
-// Funções utilitárias
-function pad2(n) {
-  return n.toString().padStart(2, "0");
-}
-function toISODate(d) {
-  const ano = d.getFullYear();
-  const mes = pad2(d.getMonth() + 1);
-  const dia = pad2(d.getDate());
-  return `${ano}-${mes}-${dia}`;
-}
+// Função utilitária global para checar existência de elemento no DOM
 function elementoExiste(id) {
   return !!document.getElementById(id);
 }
-
-// Firestore
-const db = getFirestore(app);
-
-// Funções principais (adicionar, deletar, renderizar, etc.)
-// ... (mantenha todas as funções principais do arquivo original aqui, sem alteração de lógica)
-
-// Dropdown de salas
-function renderizarSeletorSalas() {
-  const dropdownButton = document.getElementById("dropdownButton");
-  const dropdownSelected = document.getElementById("dropdownSelected");
-  const dropdownMenu = document.getElementById("dropdownMenu");
-  if (!dropdownButton || !dropdownSelected || !dropdownMenu) return;
-  if (salas.length === 0) {
-    dropdownSelected.innerHTML = `<span class="selected-icon">⏳</span><span class="selected-text">Carregando salas...</span>`;
-    return;
+// Importa interface compartilhada para calendário, reservas e funções globais
+import "../interface-sala.js";
+// Dummy logSeguranca para evitar erro caso não esteja implementado
+function logSeguranca(evento, dados) {
+  // Você pode implementar logging real aqui, se desejar
+  if (window && window.console) {
+    console.log(`[LOG-SEGURANCA] ${evento}`, dados || "");
   }
-  if (salaAtual) {
-    dropdownSelected.innerHTML = `<span class="selected-icon">${salaAtual.icone}</span><span class="selected-text">${salaAtual.nome}</span>`;
+}
+import app from "../firebase-config.js";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const SALA_ID = "cest";
+
+let unsubscribeReservas = null;
+let usuarioAutenticado = null;
+
+function atualizarUserGreeting(email) {
+  const el = document.getElementById("userGreeting");
+  if (el) {
+    let nome = "";
+    if (usuarioAutenticado) {
+      nome =
+        usuarioAutenticado.displayName ||
+        (usuarioAutenticado.email
+          ? usuarioAutenticado.email.split("@")[0]
+          : "");
+    } else if (email) {
+      nome = email.split("@")[0];
+    }
+    el.textContent = nome ? `Usuário: ${nome}` : "";
   }
-  dropdownMenu.innerHTML = salas
-    .map((sala) => {
-      const isSelected = salaAtual && salaAtual.id === sala.id;
-      return `<div class="dropdown-item ${
-        isSelected ? "selected" : ""
-      }" data-sala-id="${sala.id}"><div class="item-icon">${
-        sala.icone
-      }</div><div class="item-content"><div class="item-title">${
-        sala.nome
-      }</div></div></div>`;
-    })
-    .join("");
-  configurarSeletor();
+  window.toggleNovaReserva && window.toggleNovaReserva(email);
 }
 
-function configurarSeletor() {
-  if (seletorConfigurado) return;
-  const dropdownButton = document.getElementById("dropdownButton");
-  const dropdownMenu = document.getElementById("dropdownMenu");
-  if (!dropdownButton || !dropdownMenu) return;
-  dropdownButton.addEventListener("click", function (e) {
-    e.stopPropagation();
-    const isOpen = dropdownMenu.classList.contains("show");
-    if (isOpen) {
-      dropdownButton.classList.remove("active");
-      dropdownMenu.classList.remove("show");
+function hideLoaderIfReady() {
+  if (window.hidePageLoader) window.hidePageLoader();
+}
+
+function listenAuthAndReservas() {
+  const auth = getAuth(app);
+  onAuthStateChanged(auth, (user) => {
+    window.usuarioAutenticado = user;
+    usuarioAutenticado = user;
+    let nome = "";
+    let email = null;
+    if (user) {
+      email = user.email || null;
+      nome = user.displayName || (email ? email.split("@")[0] : "");
+    }
+    // Removido: status da sala é atualizado por interface-sala.js
+    atualizarUserGreeting(email);
+    // Listen to reservas if authenticated
+    if (unsubscribeReservas) unsubscribeReservas();
+    if (user) {
+      const db = getFirestore(app);
+      // Query: apenas filtro por salaId, ordenação por data/horaInicio
+      const q = query(
+        collection(db, "reservas"),
+        where("salaId", "==", SALA_ID),
+        orderBy("data"),
+        orderBy("horaInicio")
+      );
+      unsubscribeReservas = onSnapshot(q, (snap) => {
+        const reservas = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        if (window.atualizarReservasInterface) {
+          window.atualizarReservasInterface(reservas);
+        }
+        hideLoaderIfReady();
+      });
     } else {
-      dropdownButton.classList.add("active");
-      dropdownMenu.classList.add("show");
+      if (window.atualizarReservasInterface) {
+        window.atualizarReservasInterface([]);
+      }
+      hideLoaderIfReady();
     }
   });
-  dropdownMenu.addEventListener("click", function (e) {
-    e.stopPropagation();
-    e.preventDefault();
-    const item = e.target.closest(".dropdown-item");
-    if (item) {
-      // lógica de seleção de sala
-    }
-  });
-  seletorConfigurado = true;
 }
 
-// DOMContentLoaded principal
-document.addEventListener("DOMContentLoaded", function () {
-  // ... (mantenha toda a lógica de inicialização, listeners, etc. do arquivo original)
+// Start listeners on DOMContentLoaded
+document.addEventListener("DOMContentLoaded", () => {
+  listenAuthAndReservas();
+  // Garante que o status da sala seja atualizado mesmo sem reservas
+  if (window.atualizarStatusSala) {
+    window.atualizarStatusSala([]);
+  }
 });
-
-// Bloco de estilos animados para mensagens e modais
-const style = document.createElement("style");
-style.textContent = `
-  @keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes slideOutRight {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.05); }
-  }
-`;
-document.head.appendChild(style);
-// Inicializa o Firestore
-// Importar funções de autenticação para logout
-
-async function adicionarReserva(reservaData) {
-  try {
-    verificarLimiteReservas();
-    const erros = validarDadosReserva(reservaData);
-    if (erros.length > 0) {
-      throw new Error(erros.join("\n"));
-    }
-    const dadosLimpos = sanitizarDados(reservaData);
-
-    // 🔍 DEBUG: Verificar dados limpos
-    console.log("🧹 [DEBUG] Dados sanitizados:", dadosLimpos);
-
-    const btnReservar = document.getElementById("btnReservar");
-    if (btnReservar) {
-      btnReservar.textContent = "⏳ Salvando...";
-      btnReservar.disabled = true;
-    }
-    const reservaComTimestamp = {
-      ...dadosLimpos,
-      criadaEm: serverTimestamp(),
-      ip: "N/A",
-      userAgent: navigator.userAgent.substring(0, 200),
-    };
-
-    // 🔍 DEBUG: Verificar dados finais
-    console.log(
-      "📤 [DEBUG] Dados enviados para Firestore:",
-      reservaComTimestamp
-    );
-
-    const docRef = await addDoc(
-      collection(db, "reservas"),
-      reservaComTimestamp
-    );
-    incrementarContadorReservas();
-    console.log("✅ Reserva salva:", docRef.id);
-    logSeguranca("RESERVA_CRIADA", {
-      id: docRef.id,
-      responsavel: dadosLimpos.responsavel,
-      data: dadosLimpos.data,
-      horario: `${dadosLimpos.horaInicio}-${dadosLimpos.horaFim}`,
-    });
-    mostrarMensagem("Reserva realizada com sucesso! 🎉", "sucesso");
-    mostrarModalConfirmacao(dadosLimpos);
-    return docRef.id;
-  } catch (error) {
-    console.error("❌ Erro ao salvar reserva:", error);
-    console.error("❌ [DEBUG] Detalhes do erro:", {
-      code: error.code,
-      message: error.message,
-      stack: error.stack,
-    });
-
-    logSeguranca("ERRO_CRIAR_RESERVA", {
-      erro: error.message,
-      code: error.code,
-    });
-
-    // Mensagens de erro mais específicas
-    let mensagemErro = "Erro ao salvar reserva. Verifique sua conexão.";
-
-    if (error.code === "permission-denied") {
-      mensagemErro = "❌ Permissão negada!\n\n";
-      mensagemErro += "Possíveis causas:\n";
-      mensagemErro += "1. Você não está autenticado corretamente\n";
-      mensagemErro += "2. Seu token de autenticação expirou\n";
-      mensagemErro += "3. Os dados da reserva estão incompletos\n\n";
-      mensagemErro +=
-        "Solução: Faça logout e login novamente, depois tente criar a reserva.";
-    } else if (error.message) {
-      mensagemErro = error.message;
-    }
-
-    mostrarMensagem(mensagemErro, "erro");
-
-    // Exibe detalhes no console para debug
-    console.error(
-      "🔍 Abra o Console do Navegador (F12) para ver detalhes completos"
-    );
-
-    throw error;
-  } finally {
-    const btnReservar = document.getElementById("btnReservar");
-    if (btnReservar) {
-      btnReservar.textContent = "✅ Reservar Sala";
-      btnReservar.disabled = false;
-    }
-  }
-}
-
-async function deletarReserva(id) {
-  try {
-    const reserva = reservas.find((r) => r.id === id);
-    if (!reserva) {
-      throw new Error("Reserva não encontrada");
-    }
-    // Verificação no cliente para melhor UX (servidor reforça via regras)
-    if (!usuarioAutenticado) {
-      throw new Error("Você precisa estar autenticado para cancelar.");
-    }
-    if (
-      reserva.responsavelEmail &&
-      reserva.responsavelEmail !== usuarioAutenticado.email
-    ) {
-      throw new Error("Apenas o responsável pela reserva pode cancelar.");
-    }
-    await deleteDoc(doc(db, "reservas", id));
-    console.log("✅ Reserva deletada:", id);
-    logSeguranca("RESERVA_CANCELADA", {
-      id: id,
-      responsavel: reserva.responsavel,
-      responsavelEmail: reserva.responsavelEmail || "(indefinido)",
-      data: reserva.data,
-    });
-    mostrarMensagem("Reserva cancelada com sucesso!", "sucesso");
-  } catch (error) {
-    console.error("❌ Erro ao deletar reserva:", error);
-    logSeguranca("ERRO_CANCELAR_RESERVA", {
-      erro: error.message,
-      reservaId: id,
-    });
-    mostrarMensagem(
-      error.message || "Erro ao cancelar reserva. Tente novamente.",
-      "erro"
-    );
-    throw error;
-  }
-}
 
 function mostrarModalConfirmacao(dadosReserva) {
   // Remove modal anterior, se existir
@@ -862,9 +709,6 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("🚀 Iniciando aplicação com segurança...");
   logSeguranca("APLICACAO_INICIADA");
 
-  // NOVO: Carrega salas do cache primeiro (rápido)
-  carregarSalasDoCache();
-
   // NOVO: Verifica URL para sala específica
   const urlParams = new URL(window.location).searchParams;
   const salaIdUrl = urlParams.get("sala");
@@ -876,12 +720,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  setTimeout(() => {
-    definirDataMinima();
-    if (elementoExiste("statusAtual")) {
-      setInterval(verificarStatusAtual, 60000);
-    }
-  }, 100);
+  setTimeout(() => {}, 100);
 
   // Configuração do calendário: navegação e render inicial
   const btnPrev = document.getElementById("calPrev");
@@ -983,7 +822,27 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       try {
-        await adicionarReserva(novaReserva);
+        const db = getFirestore(app);
+        const reserva = {
+          salaId: SALA_ID,
+          responsavel: responsavelNome,
+          responsavelEmail,
+          data,
+          horaInicio,
+          horaFim,
+          assunto,
+          observacoes: observacoes || null,
+          criadaEm: (
+            await import(
+              "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+            )
+          ).serverTimestamp(),
+        };
+        const { addDoc, collection } = await import(
+          "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+        );
+        await addDoc(collection(db, "reservas"), reserva);
+        mostrarMensagem("Reserva realizada com sucesso! 🎉", "sucesso");
         this.reset();
         if (elementoExiste("responsavel")) {
           document.getElementById("responsavel").value = responsavelNome;

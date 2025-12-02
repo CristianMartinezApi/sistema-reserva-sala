@@ -38,4 +38,4 @@ try {
 } catch (e) {
   console.warn("Falha ao inicializar App Check (continuando sem):", e);
 }
-export default app;
+// Removido. Usar ../firebase-config.js da raiz.

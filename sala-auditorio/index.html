@@ -197,7 +197,7 @@
       </header>
 
       <!-- Status Atual da Sala -->
-      <div class="status-atual" id="statusAtual">
+      <div class="status-atual" id="statusSala">
         <div class="status-icon">
           <i
             data-lucide="circle"
@@ -425,8 +425,10 @@
       </div>
     </footer>
 
-    <!-- APENAS ESTE SCRIPT -->
-    <script type="module" src="firebase-script-auditorio.js"></script>
+    <!-- Script de interface compartilhada -->
+    <script src="../interface-sala.js"></script>
+    <!-- Script principal de reservas -->
+    <script type="module" src="firebase-script.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         if (window.lucide) lucide.createIcons();
