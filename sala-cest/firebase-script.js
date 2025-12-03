@@ -7,9 +7,7 @@ import "../interface-sala.js";
 // Dummy logSeguranca para evitar erro caso não esteja implementado
 function logSeguranca(evento, dados) {
   // Você pode implementar logging real aqui, se desejar
-  if (window && window.console) {
-    console.log(`[LOG-SEGURANCA] ${evento}`, dados || "");
-  }
+  // logSeguranca desativado para produção
 }
 import app from "../firebase-config.js";
 import {
@@ -57,14 +55,7 @@ function hideLoaderIfReady() {
 function listenAuthAndReservas() {
   const auth = getAuth(app);
   onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("[CEST] Usuário autenticado:", {
-        displayName: user.displayName,
-        email: user.email,
-      });
-    } else {
-      console.log("[CEST] Nenhum usuário autenticado");
-    }
+    // Debug removido
     window.usuarioAutenticado = user;
     usuarioAutenticado = user;
     let nome = "";
@@ -722,7 +713,6 @@ function configurarSeletor() {
 } // fechamento correto da função configurarSeletor
 
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("🚀 Iniciando aplicação com segurança...");
   logSeguranca("APLICACAO_INICIADA");
 
   // NOVO: Verifica URL para sala específica
@@ -829,13 +819,7 @@ document.addEventListener("DOMContentLoaded", function () {
         observacoes: observacoes || null,
       };
 
-      // 🔍 DEBUG: Verificar dados antes de enviar
-      console.log("📝 [DEBUG] Dados da reserva:", novaReserva);
-      console.log("👤 [DEBUG] Usuário autenticado:", {
-        email: usuarioAutenticado?.email,
-        uid: usuarioAutenticado?.uid,
-        displayName: usuarioAutenticado?.displayName,
-      });
+      // Debug removido
 
       try {
         const db = getFirestore(app);

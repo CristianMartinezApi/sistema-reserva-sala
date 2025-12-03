@@ -226,7 +226,150 @@ window.addEventListener("DOMContentLoaded", function () {
 
 // Atualização de reservas (chamada pelo script de dados)
 window.atualizarReservasInterface = function (reservas) {
-  console.log("[RESERVAS] Dados recebidos:", reservas);
+  // Função global para editar reserva
+  window.editarReserva = function (id) {
+    const reserva = window.reservas.find((r) => r.id === id);
+    if (!reserva) return;
+    if (
+      !window.usuarioAutenticado ||
+      window.usuarioAutenticado.email !== reserva.responsavelEmail
+    ) {
+      alert("Apenas o responsável pode editar esta reserva.");
+      return;
+    }
+    window.mostrarModalEditarReserva(reserva);
+  };
+
+  // Função global para cancelar reserva
+  window.cancelarReserva = async function (id) {
+    const reserva = window.reservas.find((r) => r.id === id);
+    if (!reserva) return;
+    if (
+      !window.usuarioAutenticado ||
+      window.usuarioAutenticado.email !== reserva.responsavelEmail
+    ) {
+      alert("Apenas o responsável pode cancelar esta reserva.");
+      return;
+    }
+    if (
+      !confirm(
+        `Confirmar cancelamento da reserva?\n\nAssunto: ${reserva.assunto}\nData: ${reserva.data}\nHorário: ${reserva.horaInicio} às ${reserva.horaFim}`
+      )
+    )
+      return;
+    try {
+      // Atualiza campo excluida no Firestore
+      const { getFirestore, doc, updateDoc } = await import(
+        "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      );
+      const db = getFirestore();
+      await updateDoc(doc(db, "reservas", id), { excluida: true });
+      alert("Reserva cancelada com sucesso!");
+    } catch (error) {
+      alert("Erro ao cancelar reserva: " + (error.message || error));
+    }
+  };
+
+  // Modal de edição de reserva
+  window.mostrarModalEditarReserva = function (reserva) {
+    // Remove modal anterior, se existir
+    const antigo = document.getElementById("modalEditarReserva");
+    if (antigo) antigo.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "modalEditarReserva";
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      `;
+
+    const card = document.createElement("div");
+    card.style.cssText = `
+        width: min(520px, 92vw);
+        background: linear-gradient(180deg, rgba(232,245,233,0.97), rgba(255,255,255,0.97));
+        border: 1px solid #007bff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        animation: slideInRight 0.25s ease;
+      `;
+    card.innerHTML = `
+        <h2 style=\"margin-bottom:12px;color:#007bff;\">Editar Reserva</h2>
+        <form id=\"formEditarReserva\">
+          <div style=\"margin-bottom:10px;\">
+            <label>Assunto:<br><input type=\"text\" name=\"assunto\" value=\"${
+              reserva.assunto
+            }\" required style=\"width:100%;padding:6px;border-radius:5px;border:1px solid #ccc;\"></label>
+          </div>
+          <div style=\"margin-bottom:10px;\">
+            <label>Data:<br><input type=\"date\" name=\"data\" value=\"${
+              reserva.data
+            }\" required style=\"width:100%;padding:6px;border-radius:5px;border:1px solid #ccc;\"></label>
+          </div>
+          <div style=\"margin-bottom:10px;display:flex;gap:8px;\">
+            <label>Início:<br><input type=\"time\" name=\"horaInicio\" value=\"${
+              reserva.horaInicio
+            }\" required style=\"padding:6px;border-radius:5px;border:1px solid #ccc;\"></label>
+            <label>Fim:<br><input type=\"time\" name=\"horaFim\" value=\"${
+              reserva.horaFim
+            }\" required style=\"padding:6px;border-radius:5px;border:1px solid #ccc;\"></label>
+          </div>
+          <div style=\"margin-bottom:10px;\">
+            <label>Observações:<br><textarea name=\"observacoes\" style=\"width:100%;padding:6px;border-radius:5px;border:1px solid #ccc;\">${
+              reserva.observacoes || ""
+            }</textarea></label>
+          </div>
+          <div style=\"display:flex;justify-content:flex-end;gap:10px;\">
+            <button type=\"button\" id=\"btnCancelarEditar\" style=\"background:#dc3545;color:#fff;padding:8px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;\">Cancelar</button>
+            <button type=\"submit\" style=\"background:#007bff;color:#fff;padding:8px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;\">Salvar</button>
+          </div>
+        </form>
+      `;
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Fechar modal ao clicar em Cancelar
+    card.querySelector("#btnCancelarEditar").onclick = () => overlay.remove();
+
+    // Handler de submit do formulário de edição
+    card.querySelector("#formEditarReserva").onsubmit = async function (e) {
+      e.preventDefault();
+      // Coleta dados do formulário
+      const formData = new FormData(e.target);
+      const dados = Object.fromEntries(formData.entries());
+      // Chama função para salvar edição
+      window.salvarEdicaoReserva(reserva.id, dados);
+      overlay.remove();
+    };
+  };
+
+  // Função global para salvar edição da reserva
+  window.salvarEdicaoReserva = async function (id, dados) {
+    try {
+      // Atualiza campos permitidos no Firestore
+      const { getFirestore, doc, updateDoc } = await import(
+        "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      );
+      const db = getFirestore();
+      // Nunca altera responsavelEmail
+      const camposPermitidos = {
+        assunto: dados.assunto,
+        data: dados.data,
+        horaInicio: dados.horaInicio,
+        horaFim: dados.horaFim,
+        observacoes: dados.observacoes || null,
+      };
+      await updateDoc(doc(db, "reservas", id), camposPermitidos);
+      alert("Reserva editada com sucesso!");
+    } catch (error) {
+      alert("Erro ao editar reserva: " + (error.message || error));
+    }
+  };
   // Filtra reservas excluídas e só mostra reservas futuras (data > hoje) ou de hoje com horaFim > agora
   const agora = new Date();
   const hojeISO = agora.toISOString().split("T")[0];
@@ -266,7 +409,7 @@ window.atualizarReservasInterface = function (reservas) {
   }`;
   lista.innerHTML = reservasFuturas
     .map((r) => {
-      const podeCancelar =
+      const podeEditar =
         window.usuarioAutenticado &&
         window.usuarioAutenticado.email === r.responsavelEmail;
       return `
@@ -274,7 +417,11 @@ window.atualizarReservasInterface = function (reservas) {
       <div class="reserva-info">
         <h3>${r.assunto}</h3>
         <p><strong>👤 Responsável:</strong> ${r.responsavel}</p>
-        <p><strong>📅 Data:</strong> ${r.data}</p>
+        <p><strong>📅 Data:</strong> ${new Date(
+          r.data + "T00:00:00"
+        ).toLocaleDateString("pt-BR", { weekday: "short" })} ${new Date(
+        r.data + "T00:00:00"
+      ).toLocaleDateString("pt-BR")}</p>
         <p><strong>⏰ Horário:</strong> ${r.horaInicio} às ${r.horaFim}</p>
         ${
           r.observacoes
@@ -283,8 +430,17 @@ window.atualizarReservasInterface = function (reservas) {
         }
       </div>
       ${
-        podeCancelar
-          ? `<div style="display:flex;justify-content:flex-end;"><button class="btn-cancelar" style="padding:8px 18px;font-size:1em;border-radius:7px;background:#dc3545;color:#fff;border:none;cursor:pointer;font-weight:600;transition:background 0.2s;min-width:90px;max-width:140px;white-space:nowrap;">🗑️ Cancelar</button></div>`
+        podeEditar
+          ? `<div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn-editar" style="padding:8px 18px;font-size:1em;border-radius:7px;background:#007bff;color:#fff;border:none;cursor:pointer;font-weight:600;transition:background 0.2s;min-width:90px;max-width:140px;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                  <svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-pencil'><path d='M18.42 2.58a2 2 0 0 1 2.83 2.83l-1.13 1.13-2.83-2.83 1.13-1.13z'/><path d='M5 13l4 4L19.5 6.5a2 2 0 0 0-2.83-2.83L5 13z'/><path d='M3 21h7v-2H5a2 2 0 0 1-2-2v-7H1v7a4 4 0 0 0 4 4z'/></svg>
+                  Editar
+                </button>
+                <button class="btn-cancelar" style="padding:8px 18px;font-size:1em;border-radius:7px;background:#dc3545;color:#fff;border:none;cursor:pointer;font-weight:600;transition:background 0.2s;min-width:90px;max-width:140px;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-trash-2'><path d='M3 6h18'/><path d='M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/><path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6'/><path d='M10 11v6'/><path d='M14 11v6'/></svg>
+                  Cancelar
+                </button>
+            </div>`
           : ""
       }
     </div>
@@ -294,6 +450,14 @@ window.atualizarReservasInterface = function (reservas) {
 
   // Adiciona event listener para todos os botões cancelar
   lista.querySelectorAll(".btn-cancelar").forEach((btn) => {
+    // Adiciona event listener para todos os botões editar
+    lista.querySelectorAll(".btn-editar").forEach((btn) => {
+      const reservaDiv = btn.closest(".reserva-item");
+      const reservaId = reservaDiv ? reservaDiv.getAttribute("data-id") : null;
+      if (reservaId) {
+        btn.addEventListener("click", () => window.editarReserva(reservaId));
+      }
+    });
     const reservaDiv = btn.closest(".reserva-item");
     const reservaId = reservaDiv ? reservaDiv.getAttribute("data-id") : null;
     if (reservaId) {
@@ -303,6 +467,120 @@ window.atualizarReservasInterface = function (reservas) {
 
   // Função global para cancelar reserva
   window.cancelarReserva = async function (id) {
+    // Função global para editar reserva
+    window.editarReserva = function (id) {
+      // Modal de edição de reserva
+      window.mostrarModalEditarReserva = function (reserva) {
+        // Função para salvar edição da reserva
+        window.salvarEdicaoReserva = async function (id, dados) {
+          try {
+            // Atualiza campos permitidos no Firestore
+            const { getFirestore, doc, updateDoc } = await import(
+              "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+            );
+            const db = getFirestore();
+            // Nunca altera responsavelEmail
+            const camposPermitidos = {
+              assunto: dados.assunto,
+              data: dados.data,
+              horaInicio: dados.horaInicio,
+              horaFim: dados.horaFim,
+              observacoes: dados.observacoes || null,
+            };
+            await updateDoc(doc(db, "reservas", id), camposPermitidos);
+            alert("Reserva editada com sucesso!");
+          } catch (error) {
+            alert("Erro ao editar reserva: " + (error.message || error));
+          }
+        };
+        // Remove modal anterior, se existir
+        const antigo = document.getElementById("modalEditarReserva");
+        if (antigo) antigo.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "modalEditarReserva";
+        overlay.style.cssText = `
+              position: fixed;
+              inset: 0;
+              background: rgba(0,0,0,0.6);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 9999;
+            `;
+
+        const card = document.createElement("div");
+        card.style.cssText = `
+              width: min(520px, 92vw);
+              background: linear-gradient(180deg, rgba(232,245,233,0.97), rgba(255,255,255,0.97));
+              border: 1px solid #007bff;
+              border-radius: 12px;
+              padding: 20px;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+              animation: slideInRight 0.25s ease;
+            `;
+        card.innerHTML = `
+              <h2 style="margin-bottom:12px;color:#007bff;">Editar Reserva</h2>
+              <form id="formEditarReserva">
+                <div style="margin-bottom:10px;">
+                  <label>Assunto:<br><input type="text" name="assunto" value="${
+                    reserva.assunto
+                  }" required style="width:100%;padding:6px;border-radius:5px;border:1px solid #ccc;"></label>
+                </div>
+                <div style="margin-bottom:10px;">
+                  <label>Data:<br><input type="date" name="data" value="${
+                    reserva.data
+                  }" required style="width:100%;padding:6px;border-radius:5px;border:1px solid #ccc;"></label>
+                </div>
+                <div style="margin-bottom:10px;display:flex;gap:8px;">
+                  <label>Início:<br><input type="time" name="horaInicio" value="${
+                    reserva.horaInicio
+                  }" required style="padding:6px;border-radius:5px;border:1px solid #ccc;"></label>
+                  <label>Fim:<br><input type="time" name="horaFim" value="${
+                    reserva.horaFim
+                  }" required style="padding:6px;border-radius:5px;border:1px solid #ccc;"></label>
+                </div>
+                <div style="margin-bottom:10px;">
+                  <label>Observações:<br><textarea name="observacoes" style="width:100%;padding:6px;border-radius:5px;border:1px solid #ccc;">${
+                    reserva.observacoes || ""
+                  }</textarea></label>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;">
+                  <button type="button" id="btnCancelarEditar" style="background:#dc3545;color:#fff;padding:8px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;">Cancelar</button>
+                  <button type="submit" style="background:#007bff;color:#fff;padding:8px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;">Salvar</button>
+                </div>
+              </form>
+            `;
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+
+        // Fechar modal ao clicar em Cancelar
+        card.querySelector("#btnCancelarEditar").onclick = () =>
+          overlay.remove();
+
+        // Handler de submit do formulário de edição
+        card.querySelector("#formEditarReserva").onsubmit = async function (e) {
+          e.preventDefault();
+          // Coleta dados do formulário
+          const formData = new FormData(e.target);
+          const dados = Object.fromEntries(formData.entries());
+          // Chama função para salvar edição (implementação a seguir)
+          window.salvarEdicaoReserva(reserva.id, dados);
+          overlay.remove();
+        };
+      };
+      const reserva = reservasFuturas.find((r) => r.id === id);
+      if (!reserva) return;
+      if (
+        !window.usuarioAutenticado ||
+        window.usuarioAutenticado.email !== reserva.responsavelEmail
+      ) {
+        alert("Apenas o responsável pode editar esta reserva.");
+        return;
+      }
+      // Exibe modal/formulário de edição (implementação a seguir)
+      window.mostrarModalEditarReserva(reserva);
+    };
     const reserva = reservasFuturas.find((r) => r.id === id);
     if (!reserva) return;
     if (

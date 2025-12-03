@@ -1,0 +1,28 @@
+service cloud.firestore {
+	match /databases/{database}/documents {
+
+		// Auditório: apenas usuários autorizados podem criar reservas
+		match /reservas_auditorio/{reservaId} {
+			allow read: if request.auth != null;
+			allow create: if request.auth != null
+				&& request.resource.data.responsavelEmail == request.auth.token.email
+				&& (request.auth.token.email in [
+					"cristianmartinez@pge.sc.gov.br"
+					// Adicione outros e-mails autorizados aqui, se necessário
+				]);
+			allow update, delete: if request.auth != null
+				&& resource.data.responsavelEmail == request.auth.token.email
+				&& request.resource.data.responsavelEmail == resource.data.responsavelEmail;
+		}
+
+		// CEST: qualquer autenticado pode criar reserva
+		match /reservas/{reservaId} {
+			allow read: if request.auth != null;
+			allow create: if request.auth != null
+				&& request.resource.data.responsavelEmail == request.auth.token.email;
+			allow update, delete: if request.auth != null
+				&& resource.data.responsavelEmail == request.auth.token.email
+				&& request.resource.data.responsavelEmail == resource.data.responsavelEmail;
+		}
+	}
+}

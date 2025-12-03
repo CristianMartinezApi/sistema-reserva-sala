@@ -28,14 +28,10 @@ try {
       provider: new ReCaptchaV3Provider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
-    console.log("🛡️ Firebase App Check habilitado.");
   } else {
     // Modo opcional: sem chave, não inicializa e não polui o console com warnings em dev
-    console.info(
-      '🛡️ App Check desativado (sem chave). Para habilitar em produção, defina <meta name="app-check-site-key" content="SUA_CHAVE_SITE"> no index.html.'
-    );
   }
 } catch (e) {
-  console.warn("Falha ao inicializar App Check (continuando sem):", e);
+  // Falha ao inicializar App Check (continuando sem)
 }
 export default app;

@@ -28,7 +28,6 @@ try {
       provider: new ReCaptchaV3Provider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
-    console.log("🛡️ Firebase App Check habilitado.");
   } else {
     // Modo opcional: sem chave, não inicializa e não polui o console com warnings em dev
     console.info(
